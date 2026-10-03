@@ -80,6 +80,7 @@ class EnvSettings(BaseSettings):
     NOTION_DB_CRYPTO: str = ""
     NOTION_DB_MOZI: str = ""
     NOTION_DB_TRISTAN_BURNS: str = ""
+    NOTION_DB_DAVID_COHEN: str = ""
 
     DIGEST_RECIPIENT: str = ""
     DATA_DIR: str = str(PROJECT_ROOT / "data")

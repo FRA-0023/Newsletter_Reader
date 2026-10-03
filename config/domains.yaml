@@ -93,3 +93,24 @@ domains:
     digest:
       enabled: true
       subject_prefix: "[TECH DIGEST]"
+
+  - id: "david_cohen"
+    display_name: "David Cohen — Superposition Strategy"
+    enabled: true
+    schedule:
+      cron: "0 19 * * *"             # Giornaliero h 19:00 (o ad emissione)
+      timezone: "Europe/Rome"
+    filter:
+      sender: "superpositionstrat@mail.beehiiv.com"
+      subject_contains: ""
+      stop_string: "Update your email preferences or unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/david_cohen.md"
+      schema_type: "business_framework"
+    notion:
+      database_env_key: "NOTION_DB_DAVID_COHEN"
+      layout_type: "framework_table"
+    digest:
+      enabled: true
+      subject_prefix: "[STRATEGY DIGEST]"
