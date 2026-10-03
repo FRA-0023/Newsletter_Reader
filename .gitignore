@@ -1,0 +1,23 @@
+# Python & Virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Environment & Secrets (Zero-Trust)
+.env
+*.env.local
+
+# Project Local State & Logs
+data/*.db
+data/*.db-journal
+data/*.log
+*.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

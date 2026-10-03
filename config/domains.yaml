@@ -1,0 +1,95 @@
+version: "1.0"
+
+global:
+  imap_server: "imap.gmail.com"
+  imap_port: 993
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 465
+  max_retries: 3
+  inter_email_delay_seconds: 5.0
+  db_path: "data/state.db"
+
+domains:
+  - id: "world_population"
+    display_name: "World Population Newsletter"
+    enabled: true
+    schedule:
+      cron: "0 17 * * *"             # Giornaliero h 17:00
+      timezone: "Europe/Rome"
+    filter:
+      sender: "worldpopulation@substack.com"
+      subject_contains: ""
+      stop_string: "Unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/world_population.md"
+      schema_type: "quantitative_metrics"
+    notion:
+      database_env_key: "NOTION_DB_WORLD_POPULATION"
+      layout_type: "bullet_metrics"
+    digest:
+      enabled: true
+      subject_prefix: "[POPULATION DIGEST]"
+
+  - id: "crypto"
+    display_name: "The Crypto Gateway"
+    enabled: true
+    schedule:
+      cron: "30 13 * * 5"            # Venerdì h 13:30
+      timezone: "Europe/Rome"
+    filter:
+      sender: "thecryptogateway@mail.thecryptogateway.it"
+      subject_contains: ""
+      stop_string: "❤️ Grazie per averci letto!"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/crypto.md"
+      schema_type: "journalistic_editorial"
+    notion:
+      database_env_key: "NOTION_DB_CRYPTO"
+      layout_type: "editorial_sections"
+    digest:
+      enabled: true
+      subject_prefix: "[CRYPTO DIGEST]"
+
+  - id: "mozi_minute"
+    display_name: "Mozi Minute"
+    enabled: true
+    schedule:
+      cron: "0 16 * * *"             # Giornaliero h 16:00
+      timezone: "Europe/Rome"
+    filter:
+      sender: "value@acquisition.com"
+      subject_contains: ""
+      stop_string: "As promised, money in under a minute."
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/mozi_minute.md"
+      schema_type: "business_framework"
+    notion:
+      database_env_key: "NOTION_DB_MOZI"
+      layout_type: "framework_table"
+    digest:
+      enabled: true
+      subject_prefix: "[MOZI DIGEST]"
+
+  - id: "tristan_burns"
+    display_name: "Tristan Burns Newsletter"
+    enabled: true
+    schedule:
+      cron: "0 18 * * *"             # Giornaliero h 18:00 (o ad emissione)
+      timezone: "Europe/Rome"
+    filter:
+      sender: "trisjburns@mail.beehiiv.com"
+      subject_contains: ""
+      stop_string: "Update your email preferences or unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/tristan_burns.md"
+      schema_type: "business_framework"
+    notion:
+      database_env_key: "NOTION_DB_TRISTAN_BURNS"
+      layout_type: "framework_table"
+    digest:
+      enabled: true
+      subject_prefix: "[TECH DIGEST]"

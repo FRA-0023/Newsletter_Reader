@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  newsletter_reader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: newsletter_reader
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./templates:/app/templates:ro
+      - ./config/domains.yaml:/app/config/domains.yaml:ro
+    environment:
+      - TZ=Europe/Rome
