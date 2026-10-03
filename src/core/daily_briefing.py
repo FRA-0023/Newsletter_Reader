@@ -1,3 +1,4 @@
+import re
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import date
@@ -10,6 +11,37 @@ from src.adapters.email_notifier import EmailNotifier
 from src.core.schemas import DailyBriefingOutput
 
 logger = logging.getLogger(__name__)
+
+# Curated, high-contrast, accessible color accents for domain visual distinction.
+# Each entry defines a left-border accent and an executive pill badge.
+DOMAIN_ACCENTS = [
+    {"border": "#2563eb", "badge_bg": "#eff6ff", "badge_text": "#1d4ed8", "badge_border": "#bfdbfe"},  # Cobalt Blue
+    {"border": "#7c3aed", "badge_bg": "#f5f3ff", "badge_text": "#6d28d9", "badge_border": "#ddd6fe"},  # Royal Violet
+    {"border": "#059669", "badge_bg": "#ecfdf5", "badge_text": "#047857", "badge_border": "#a7f3d0"},  # Emerald Green
+    {"border": "#d97706", "badge_bg": "#fffbeb", "badge_text": "#b45309", "badge_border": "#fde68a"},  # Amber Warm
+    {"border": "#e11d48", "badge_bg": "#fff1f2", "badge_text": "#be123c", "badge_border": "#fecdd3"},  # Crimson Rose
+    {"border": "#0891b2", "badge_bg": "#ecfeff", "badge_text": "#0e7490", "badge_border": "#a5f3fc"},  # Ocean Cyan
+]
+
+
+def _clean_html_markdown(text: str) -> str:
+    """
+    Converts LLM markdown tokens into styled HTML tags and strips accidental leading bullet symbols.
+    
+    Trade-off: LLMs regularly emit markdown (e.g. **bold**, *italics*, `code`) even in structured JSON strings.
+    Parsing via targeted regex guarantees flawless cross-client email rendering without heavy AST dependencies.
+    """
+    if not text:
+        return ""
+    # Strip any accidental leading bullet points like "• ", "- ", or "* "
+    cleaned = re.sub(r'^[•\-\*]\s*', '', text.strip())
+    # Bold: **phrase** -> <strong style="color: #0f172a; font-weight: 700;">phrase</strong>
+    cleaned = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #0f172a; font-weight: 700;">\1</strong>', cleaned)
+    # Italic: *phrase* -> <em>phrase</em>
+    cleaned = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<em>\1</em>', cleaned)
+    # Inline code: `token` -> <code>token</code>
+    cleaned = re.sub(r'`(.*?)`', r'<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 12px;">\1</code>', cleaned)
+    return cleaned
 
 
 class DailyBriefingService:
@@ -211,11 +243,16 @@ Notion Page: {notion_url}
 
         body_text = "\n".join(lines)
 
-        # Minimalist responsive executive HTML
+        # Minimalist responsive executive HTML with chromatic domain identification
         html_domains = []
-        for d in data.domain_breakdowns:
+        for idx, d in enumerate(data.domain_breakdowns):
+            accent = DOMAIN_ACCENTS[idx % len(DOMAIN_ACCENTS)]
+            border_color = accent['border']
             bullets_html = "".join([
-                f"<li style='margin-bottom: 8px; font-size: 13.5px; color: #334155; line-height: 1.55;'>• {b}</li>"
+                f"<li style='margin-bottom: 9px; font-size: 13.5px; color: #334155; line-height: 1.55; padding-left: 2px;'>"
+                f"<span style='color: {border_color}; font-weight: bold; margin-right: 6px;'>•</span>"
+                f"{_clean_html_markdown(b)}"
+                f"</li>"
                 for b in d.key_takeaways
             ])
             notion_link = (
@@ -225,9 +262,11 @@ Notion Page: {notion_url}
                 if d.notion_url else ""
             )
             html_domains.append(f"""
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px;">
-                <h3 style="margin: 0 0 6px 0; color: #0f172a; font-size: 15.5px; font-weight: 700;">{d.domain_name}</h3>
-                <p style="margin: 0 0 12px 0; color: #475569; font-size: 13.5px; line-height: 1.5; font-style: italic;">{d.core_thesis}</p>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid {accent['border']}; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);">
+                <div style="margin-bottom: 8px;">
+                    <span style="background: {accent['badge_bg']}; color: {accent['badge_text']}; border: 1px solid {accent['badge_border']}; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em; display: inline-block;">{d.domain_name}</span>
+                </div>
+                <p style="margin: 0 0 12px 0; color: #475569; font-size: 13.5px; line-height: 1.5; font-style: italic;">{_clean_html_markdown(d.core_thesis)}</p>
                 <ul style="margin: 0; padding-left: 0; list-style: none;">
                     {bullets_html}
                 </ul>
@@ -242,7 +281,7 @@ Notion Page: {notion_url}
     <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
         <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 20px;">
             <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">{lbl_header}</span>
-            <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{data.executive_title}</h1>
+            <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{_clean_html_markdown(data.executive_title)}</h1>
             <span style="font-size: 12px; color: #94a3b8;">{lbl_date} {date_str} • {lbl_read_time}</span>
         </div>
 
@@ -251,7 +290,7 @@ Notion Page: {notion_url}
         <div style="margin-bottom: 22px; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 16px;">
             <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.03em;">{lbl_overview}</span>
             <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0;">
-                {data.macro_narrative}
+                {_clean_html_markdown(data.macro_narrative)}
             </p>
         </div>
 
@@ -262,7 +301,7 @@ Notion Page: {notion_url}
 
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; margin-bottom: 22px;">
             <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">{lbl_priority}</span>
-            <p style="margin: 6px 0 0 0; color: #14532d; font-weight: 600; font-size: 13.5px; line-height: 1.5;">{data.actionable_priority}</p>
+            <p style="margin: 6px 0 0 0; color: #14532d; font-weight: 600; font-size: 13.5px; line-height: 1.5;">{_clean_html_markdown(data.actionable_priority)}</p>
         </div>
 
         <div style="font-size: 11.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center;">

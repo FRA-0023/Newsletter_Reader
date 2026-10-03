@@ -1,3 +1,4 @@
+import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -7,6 +8,22 @@ from typing import Optional
 from src.core.schemas import ExecutiveDigest
 
 logger = logging.getLogger(__name__)
+
+
+def _clean_html_markdown(text: str) -> str:
+    """
+    Sanitizes LLM-generated string fields by converting markdown tokens to semantic HTML.
+    
+    Trade-off: LLMs regularly emit markdown (e.g. **bold**, *italics*, `code`) even in structured JSON strings.
+    Parsing via targeted regex guarantees flawless cross-client email rendering without heavy AST dependencies.
+    """
+    if not text:
+        return ""
+    cleaned = re.sub(r'^[•\-\*]\s*', '', text.strip())
+    cleaned = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #0f172a; font-weight: 700;">\1</strong>', cleaned)
+    cleaned = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<em>\1</em>', cleaned)
+    cleaned = re.sub(r'`(.*?)`', r'<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 12px;">\1</code>', cleaned)
+    return cleaned
 
 
 class EmailNotifier:
@@ -64,22 +81,22 @@ Headline: {digest.headline}
     <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
         <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 20px;">
             <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">{display_name}</span>
-            <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{digest.headline}</h1>
+            <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{_clean_html_markdown(digest.headline)}</h1>
             <span style="font-size: 12px; color: #94a3b8;">{date_str} • Lettura rapida: 30 sec</span>
         </div>
 
         <div style="margin-bottom: 22px;">
             <div style="margin-bottom: 12px; padding: 12px 14px; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0 6px 6px 0;">
                 <strong style="color: #1e3a8a; font-size: 12px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dati & Fatti Chiave</strong>
-                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{digest.bullet_1}</span>
+                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{_clean_html_markdown(digest.bullet_1)}</span>
             </div>
             <div style="margin-bottom: 12px; padding: 12px 14px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 0 6px 6px 0;">
                 <strong style="color: #5b21b6; font-size: 12px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dinamica & Contesto</strong>
-                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{digest.bullet_2}</span>
+                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{_clean_html_markdown(digest.bullet_2)}</span>
             </div>
             <div style="margin-bottom: 12px; padding: 12px 14px; background: #f8fafc; border-left: 3px solid #10b981; border-radius: 0 6px 6px 0;">
                 <strong style="color: #065f46; font-size: 12px; text-transform: uppercase; display: block; margin-bottom: 2px;">Azione & Takeaway</strong>
-                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{digest.bullet_3}</span>
+                <span style="color: #1e293b; font-size: 14px; line-height: 1.5;">{_clean_html_markdown(digest.bullet_3)}</span>
             </div>
         </div>
 
