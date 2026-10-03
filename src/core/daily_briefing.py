@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from datetime import date
 from pathlib import Path
 
-from config.settings import GlobalRuntimeConfig, EnvSettings, YamlConfig
+from config.settings import GlobalRuntimeConfig, EnvSettings, YamlConfig, resolve_language
 from src.adapters.sqlite_store import SQLiteStore
 from src.adapters.gemini_client import GeminiClient
 from src.adapters.email_notifier import EmailNotifier
@@ -113,6 +113,8 @@ Notion Page: {notion_url}
             logger.error("GEMINI_API_KEY is missing. Cannot synthesize daily briefing.")
             return False
 
+        target_lang = resolve_language(self.env.LANGUAGE, getattr(self.global_config, "language", "en"))
+
         try:
             briefing_data: DailyBriefingOutput = self.gemini_client.extract_structured_content(
                 template_path="templates/daily_briefing.md",
@@ -120,7 +122,7 @@ Notion Page: {notion_url}
                 body=aggregated_input,
                 schema_type="daily_briefing",
                 model_name="gemini-2.5-flash",
-                language=self.env.LANGUAGE,
+                language=target_lang,
             )
         except Exception as e:
             logger.error(f"Failed to generate Daily Briefing via Gemini: {e}", exc_info=True)
@@ -135,7 +137,7 @@ Notion Page: {notion_url}
                     database_id=self.env.NOTION_DB_DAILY_BRIEFING,
                     date_str=target_date,
                     data=briefing_data,
-                    language=self.env.LANGUAGE,
+                    language=target_lang,
                 )
                 logger.info(f"Daily Briefing archived in Notion database with Page ID: {notion_page_id}")
             except Exception as e:
@@ -156,7 +158,9 @@ Notion Page: {notion_url}
 
         # Format Text and HTML email
         subject_line = f"[DAILY INTEL BRIEFING] {target_date} — {briefing_data.executive_title}"
-        body_text, body_html = self._render_email(target_date, briefing_data, notion_page_id=notion_page_id)
+        body_text, body_html = self._render_email(
+            target_date, briefing_data, notion_page_id=notion_page_id, language=target_lang
+        )
 
         if dry_run:
             logger.info("[DRY-RUN] Daily Briefing synthesized successfully:")
@@ -182,9 +186,10 @@ Notion Page: {notion_url}
         date_str: str,
         data: DailyBriefingOutput,
         notion_page_id: Optional[str] = None,
+        language: str = "en",
     ) -> tuple[str, str]:
         # Internationalized string catalog: renders email UI chrome in the operator's configured language.
-        is_it = self.env.LANGUAGE.lower() == "it"
+        is_it = language.lower() == "it"
 
         lbl_header = "☕ Daily Intelligence Briefing"
         lbl_read_time = "Lettura rapida: 60 sec" if is_it else "Quick read: 60 sec"
@@ -287,9 +292,9 @@ Notion Page: {notion_url}
 
         {notion_briefing_bar}
 
-        <div style="margin-bottom: 22px; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 16px;">
-            <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.03em;">{lbl_overview}</span>
-            <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0;">
+        <div style="margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid #f1f5f9;">
+            <span style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.05em;">{lbl_overview}</span>
+            <p style="font-size: 14.5px; color: #1e293b; line-height: 1.65; margin: 0; font-weight: 400;">
                 {_clean_html_markdown(data.macro_narrative)}
             </p>
         </div>

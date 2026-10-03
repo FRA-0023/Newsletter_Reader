@@ -8,6 +8,7 @@ global:
   max_retries: 3
   inter_email_delay_seconds: 5.0
   db_path: "data/state.db"
+  language: "en"
 
 daily_briefing:
   enabled: true

@@ -56,6 +56,7 @@ class GlobalRuntimeConfig(BaseModel):
     max_retries: int = 3
     inter_email_delay_seconds: float = 5.0
     db_path: str = "data/state.db"
+    language: str = "en"
 
 
 class DailyBriefingScheduleConfig(BaseModel):
@@ -93,9 +94,9 @@ class EnvSettings(BaseSettings):
     NOTION_DB_TRISTAN_BURNS: str = ""
     NOTION_DB_DAVID_COHEN: str = ""
 
-    # Global output language for LLM synthesis and email templates (e.g. 'en', 'it', 'es')
-    # Default is 'en' for open-source consistency; operator can set 'it' in local .env
-    LANGUAGE: str = "en"
+    # Explicit environment localization override (e.g. 'en', 'it', 'es').
+    # If omitted from .env, cascades to global.language defined in config/domains.yaml
+    LANGUAGE: Optional[str] = None
 
     # Optional dedicated Notion Database for Evening Daily Intelligence Briefings
     NOTION_DB_DAILY_BRIEFING: Optional[str] = None
@@ -120,3 +121,18 @@ def load_yaml_config(config_path: Optional[Path] = None) -> YamlConfig:
         raw = yaml.safe_load(f)
 
     return YamlConfig.model_validate(raw)
+
+
+def resolve_language(env_lang: Optional[str], yaml_lang: Optional[str]) -> str:
+    """
+    Determines output localization language following strict cascade hierarchy:
+    1. Explicit environment variable override (LANGUAGE in .env)
+    2. Global configuration in domains.yaml (global.language)
+    3. Canonical fallback: 'en' for open-source distribution consistency.
+    """
+    if env_lang and env_lang.strip():
+        return env_lang.strip().lower()
+    if yaml_lang and yaml_lang.strip():
+        return yaml_lang.strip().lower()
+    return "en"
+
