@@ -12,6 +12,11 @@ from src.core.schemas import get_schema_for_type
 logger = logging.getLogger(__name__)
 
 
+class QuotaExhaustedError(RuntimeError):
+    """Raised when Gemini API quota or rate limit is completely exhausted (HTTP 429)."""
+    pass
+
+
 class GeminiClient:
     def __init__(self, api_key: str):
         if not api_key:
@@ -50,7 +55,6 @@ Subject: {subject}
 
         attempts = 0
         backoff = 3.0
-        rate_limit_delay = 30.0
 
         while attempts < max_retries:
             attempts += 1
@@ -79,7 +83,7 @@ Subject: {subject}
                 err_str = str(e)
                 status_code = getattr(e, "code", None)
 
-                # ── 1. RATE LIMIT / QUOTA EXHAUSTED (HTTP 429) ──
+                # ── 1. FAIL-FAST SU QUOTA ESAURITA (HTTP 429) ──
                 is_429 = (
                     status_code == 429
                     or "429" in err_str
@@ -87,16 +91,13 @@ Subject: {subject}
                     or "quota" in err_str.lower()
                 )
                 if is_429:
-                    logger.warning(
-                        f"[RATE LIMIT 429] Gemini quota reached on attempt {attempts}/{max_retries}. "
-                        f"Pausing execution for {rate_limit_delay}s before retry..."
+                    logger.critical(
+                        f"[QUOTA EXHAUSTED 429] Quota Gemini esaurita: {e}. "
+                        "Terminazione immediata del processo (nessun retry a vuoto)."
                     )
-                    if attempts >= max_retries:
-                        logger.error(f"[RATE LIMIT 429] Exhausted all {max_retries} attempts due to rate limit: {e}")
-                        raise
-                    time.sleep(rate_limit_delay)
-                    rate_limit_delay *= 1.5
-                    continue
+                    raise QuotaExhaustedError(
+                        f"Quota API Gemini terminata (HTTP 429). Processo interrotto per salvaguardare lo stato: {e}"
+                    )
 
                 # ── 2. SERVICE UNAVAILABLE / TRANSIENT SERVER ERROR (HTTP 503 / 500) ──
                 is_503 = (
@@ -107,11 +108,11 @@ Subject: {subject}
                 )
                 if is_503:
                     logger.warning(
-                        f"[TRANSIENT 503] Gemini service temporarily unavailable on attempt {attempts}/{max_retries}. "
-                        f"Retrying in {backoff}s..."
+                        f"[TRANSIENT 503] Servizio Gemini temporaneamente non disponibile (Attempt {attempts}/{max_retries}). "
+                        f"Retry fra {backoff}s..."
                     )
                     if attempts >= max_retries:
-                        logger.error(f"[TRANSIENT 503] Exhausted all {max_retries} attempts due to server unavailability: {e}")
+                        logger.error(f"[TRANSIENT 503] Esauriti tutti i {max_retries} tentativi per errore server: {e}")
                         raise
                     time.sleep(backoff)
                     backoff *= 2.0
@@ -119,13 +120,13 @@ Subject: {subject}
 
                 # ── 3. AUTH / CLIENT NON-RETRYABLE ERRORS (HTTP 401, 403, 400) ──
                 if status_code in (400, 401, 403) or "API_KEY_INVALID" in err_str:
-                    logger.critical(f"[NON-RETRYABLE] Fatal client error {status_code}: {e}")
+                    logger.critical(f"[NON-RETRYABLE] Errore fatale client {status_code}: {e}")
                     raise
 
                 # ── 4. GENERIC TRANSIENT ERROR FALLBACK ──
-                logger.warning(f"Unexpected error during Gemini extraction (Attempt {attempts}/{max_retries}): {e}")
+                logger.warning(f"Errore imprevisto durante estrazione Gemini (Attempt {attempts}/{max_retries}): {e}")
                 if attempts >= max_retries:
-                    logger.error(f"Exhausted all {max_retries} attempts: {e}")
+                    logger.error(f"Esauriti tutti i {max_retries} tentativi: {e}")
                     raise
                 time.sleep(backoff)
                 backoff *= 2.0

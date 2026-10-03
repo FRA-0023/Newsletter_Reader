@@ -10,6 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config.settings import load_yaml_config, EnvSettings
 from src.adapters.sqlite_store import SQLiteStore
+from src.adapters.gemini_client import QuotaExhaustedError
 from src.core.engine import NewsletterEngine
 from src.daemon import run_daemon_loop
 
@@ -83,6 +84,9 @@ def cmd_run(args) -> int:
             total_processed += count
         logger.info(f"Run completed. Total emails processed: {total_processed}")
         return 0
+    except QuotaExhaustedError as e:
+        logger.critical(f"\n[FATAL] {e}\nEsecuzione terminata. Riprova quando la quota sara disponibile o aggiorna la chiave API.")
+        return 2
     finally:
         store.close()
 

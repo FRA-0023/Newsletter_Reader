@@ -7,7 +7,7 @@ from config.settings import DomainConfig, GlobalRuntimeConfig, EnvSettings
 from src.core.models import RawEmail
 from src.adapters.sqlite_store import SQLiteStore
 from src.adapters.imap_client import ImapClient
-from src.adapters.gemini_client import GeminiClient
+from src.adapters.gemini_client import GeminiClient, QuotaExhaustedError
 from src.adapters.notion_client import NotionClientAdapter
 from src.adapters.email_notifier import EmailNotifier
 
@@ -92,6 +92,9 @@ class NewsletterEngine:
                         model_name=domain.ai.model,
                         max_retries=self.global_config.max_retries,
                     )
+                except QuotaExhaustedError as e:
+                    logger.critical(f"Aborting domain processing due to Gemini quota exhaustion: {e}")
+                    raise
                 except Exception as e:
                     logger.error(f"Gemini synthesis failed for '{email_item.subject}': {e}", exc_info=True)
                     continue
