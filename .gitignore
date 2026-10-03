@@ -29,3 +29,6 @@ data/*.log
 .idea/
 .DS_Store
 Thumbs.db
+
+# Antigravity Local Skills & Junctions
+.agents/

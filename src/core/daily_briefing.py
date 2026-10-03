@@ -154,13 +154,21 @@ Notion Page: {notion_url}
         # Minimalist responsive executive HTML
         html_domains = []
         for d in data.domain_breakdowns:
-            bullets_html = "".join([f"<li style='margin-bottom: 4px;'>{b}</li>" for b in d.key_takeaways])
-            notion_link = f"<div style='margin-top: 6px;'><a href='{d.notion_url}' style='color: #2563eb; font-size: 13px; text-decoration: none;'>Vedi nota completa su Notion &rarr;</a></div>" if d.notion_url else ""
+            bullets_html = "".join([
+                f"<li style='margin-bottom: 8px; font-size: 13.5px; color: #334155; line-height: 1.55;'>• {b}</li>"
+                for b in d.key_takeaways
+            ])
+            notion_link = (
+                f"<div style='margin-top: 14px;'>"
+                f"<a href='{d.notion_url}' style='display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 600; padding: 7px 15px; border-radius: 6px;'>Approfondisci su Notion &rarr;</a>"
+                f"</div>"
+                if d.notion_url else ""
+            )
             html_domains.append(f"""
-            <div style="background: #f8fafc; border-left: 3px solid #0f172a; padding: 12px 16px; margin-bottom: 16px; border-radius: 0 4px 4px 0;">
-                <h3 style="margin: 0 0 6px 0; color: #0f172a; font-size: 15px; font-weight: 600;">{d.domain_name}</h3>
-                <p style="margin: 0 0 8px 0; color: #334155; font-size: 14px; line-height: 1.4;">{d.core_thesis}</p>
-                <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 13px; line-height: 1.4;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px;">
+                <h3 style="margin: 0 0 6px 0; color: #0f172a; font-size: 15.5px; font-weight: 700;">{d.domain_name}</h3>
+                <p style="margin: 0 0 12px 0; color: #475569; font-size: 13.5px; line-height: 1.5; font-style: italic;">{d.core_thesis}</p>
+                <ul style="margin: 0; padding-left: 0; list-style: none;">
                     {bullets_html}
                 </ul>
                 {notion_link}
@@ -170,34 +178,35 @@ Notion Page: {notion_url}
         body_html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #0f172a; padding: 24px; max-width: 680px; margin: 0 auto; line-height: 1.5;">
-    <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px;">
-        <span style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Executive Intelligence Briefing</span>
-        <h1 style="font-size: 20px; margin: 6px 0 0 0; color: #0f172a; font-weight: 700;">{data.executive_title}</h1>
-        <span style="font-size: 13px; color: #94a3b8;">Data: {date_str}</span>
-    </div>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 24px 12px; line-height: 1.5;">
+    <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
+        <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 20px;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">☕ Daily Intelligence Briefing</span>
+            <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{data.executive_title}</h1>
+            <span style="font-size: 12px; color: #94a3b8;">Data: {date_str} • Lettura rapida: 60 sec</span>
+        </div>
 
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; margin-bottom: 8px;">Macro Narrative</h2>
-        <p style="font-size: 14px; color: #1e293b; line-height: 1.6; margin: 0; background: #f1f5f9; padding: 14px; border-radius: 6px;">
-            {data.macro_narrative}
-        </p>
-    </div>
+        <div style="margin-bottom: 22px; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 16px;">
+            <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.03em;">Panoramica in Breve</span>
+            <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0;">
+                {data.macro_narrative}
+            </p>
+        </div>
 
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; margin-bottom: 12px;">Intelligence per Dominio</h2>
-        {"".join(html_domains)}
-    </div>
+        <div style="margin-bottom: 22px;">
+            <h2 style="font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0 0 12px 0; font-weight: 700;">I Punti Salienti di Oggi</h2>
+            {"".join(html_domains)}
+        </div>
 
-    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
-        <span style="font-size: 12px; font-weight: 700; color: #1d4ed8; text-transform: uppercase;">Priorità Strategica Operativa</span>
-        <p style="margin: 6px 0 0 0; color: #1e3a8a; font-weight: 600; font-size: 14px;">🎯 {data.actionable_priority}</p>
-    </div>
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; margin-bottom: 22px;">
+            <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">🎯 Spunto per Domani</span>
+            <p style="margin: 6px 0 0 0; color: #14532d; font-weight: 600; font-size: 13.5px; line-height: 1.5;">{data.actionable_priority}</p>
+        </div>
 
-    <div style="font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-        Newsletter_Reader Unified Headless Engine &bull; Generato automaticamente tramite Gemini Structured Intelligence
+        <div style="font-size: 11.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center;">
+            Newsletter_Reader &bull; Gli approfondimenti e le schede complete sono archiviati sul tuo Notion.
+        </div>
     </div>
 </body>
-</html>
-"""
+</html>"""
         return body_text, body_html
