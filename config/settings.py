@@ -26,7 +26,8 @@ class AIConfig(BaseModel):
 
 
 class NotionConfig(BaseModel):
-    database_env_key: str
+    database_env_key: Optional[str] = None
+    database_id: Optional[str] = None
     layout_type: str
 
 

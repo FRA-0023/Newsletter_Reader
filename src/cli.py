@@ -80,7 +80,12 @@ def cmd_run(args) -> int:
     total_processed = 0
     try:
         for d in target_domains:
-            count = engine.process_domain(d, dry_run=args.dry_run)
+            count = engine.process_domain(
+                d,
+                dry_run=args.dry_run,
+                include_seen=args.include_seen,
+                limit=args.limit,
+            )
             total_processed += count
         logger.info(f"Run completed. Total emails processed: {total_processed}")
         return 0
@@ -143,6 +148,8 @@ def main() -> None:
     sub_run = subparsers.add_parser("run", help="Run domain processing")
     sub_run.add_argument("--domain", "-d", help="ID of domain to process (e.g. crypto, world_population)")
     sub_run.add_argument("--dry-run", action="store_true", help="Execute without Notion write or Gmail flag")
+    sub_run.add_argument("--include-seen", action="store_true", help="Include already-read emails (for initial backfill/import)")
+    sub_run.add_argument("--limit", "-n", type=int, default=None, help="Limit number of latest emails to fetch")
     sub_run.set_defaults(func=cmd_run)
 
     # daily-briefing

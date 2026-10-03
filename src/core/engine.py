@@ -41,18 +41,27 @@ class NewsletterEngine:
             smtp_port=self.global_config.smtp_port,
         )
 
-    def process_domain(self, domain: DomainConfig, dry_run: bool = False) -> int:
+    def process_domain(
+        self,
+        domain: DomainConfig,
+        dry_run: bool = False,
+        include_seen: bool = False,
+        limit: Optional[int] = None,
+    ) -> int:
         logger.info(f"=== Starting processing for domain: [{domain.id}] '{domain.display_name}' ===")
 
         if not domain.enabled:
             logger.info(f"Domain '{domain.id}' is disabled in configuration. Skipping.")
             return 0
 
-        # Resolve Notion Database ID from environment
-        db_id = getattr(self.env, domain.notion.database_env_key, None)
+        # Resolve Notion Database ID from environment or yaml fallback
+        db_id = getattr(self.env, domain.notion.database_env_key, None) if domain.notion.database_env_key else None
+        if not db_id and domain.notion.database_id:
+            db_id = domain.notion.database_id
+
         if not db_id and not dry_run:
             logger.error(
-                f"Missing Notion database ID in environment variable: {domain.notion.database_env_key}"
+                f"Missing Notion database ID for domain '{domain.id}'. Check {domain.notion.database_env_key} in .env or domains.yaml."
             )
             return 0
 
@@ -63,13 +72,15 @@ class NewsletterEngine:
                 sender_filter=domain.filter.sender,
                 subject_filter=domain.filter.subject_contains,
                 stop_string=domain.filter.stop_string,
+                include_seen=include_seen,
+                limit=limit,
             )
 
             if not emails:
-                logger.info(f"No unread emails found for domain '{domain.id}'.")
+                logger.info(f"No emails found matching criteria for domain '{domain.id}'.")
                 return 0
 
-            logger.info(f"Discovered {len(emails)} unread email(s) for domain '{domain.id}'.")
+            logger.info(f"Discovered {len(emails)} email(s) for domain '{domain.id}'.")
 
             for i, email_item in enumerate(emails):
                 mid = email_item.message_id

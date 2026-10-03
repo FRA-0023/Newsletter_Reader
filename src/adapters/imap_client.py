@@ -59,20 +59,25 @@ class ImapClient:
         sender_filter: str,
         subject_filter: str = "",
         stop_string: Optional[str] = None,
+        include_seen: bool = False,
+        limit: Optional[int] = None,
     ) -> List[RawEmail]:
         if not self.mail:
             raise RuntimeError("IMAP client is not connected.")
 
-        search_criteria = f'(UNSEEN FROM "{sender_filter}")'
+        search_criteria = f'(FROM "{sender_filter}")' if include_seen else f'(UNSEEN FROM "{sender_filter}")'
         logger.info(f"Searching IMAP inbox with criteria: {search_criteria}")
         status, data = self.mail.search(None, search_criteria)
 
         if status != "OK" or not data or not data[0]:
-            logger.info("No unread emails found matching criteria.")
+            logger.info("No matching emails found.")
             return []
 
         email_ids = data[0].split()
-        logger.info(f"Found {len(email_ids)} unread email(s) for sender: {sender_filter}")
+        if limit and limit > 0:
+            email_ids = email_ids[-limit:]
+
+        logger.info(f"Found {len(email_ids)} email(s) for sender: {sender_filter}")
         results: List[RawEmail] = []
 
         for eid_bytes in email_ids:
