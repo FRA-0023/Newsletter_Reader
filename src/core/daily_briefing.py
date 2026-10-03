@@ -103,7 +103,8 @@ Notion Page: {notion_url}
             logger.info(f"Text Content:\n{body_text}")
             return True
 
-        recipient = recipient_override or self.env.DIGEST_RECIPIENT or self.env.GMAIL_USER
+        raw_recipient = recipient_override or self.env.DIGEST_RECIPIENT or self.env.GMAIL_USER
+        recipient = self.env.GMAIL_USER if raw_recipient in ("your_email@gmail.com", "your_email@example.com", "") else raw_recipient
         success = self.email_notifier.send_daily_briefing(
             recipient=recipient,
             subject=subject_line,

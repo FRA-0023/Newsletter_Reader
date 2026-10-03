@@ -141,7 +141,8 @@ class NewsletterEngine:
                 # 2. Push Email Digest (3-Bullet Executive Memo)
                 digest_sent = False
                 if domain.digest.enabled:
-                    recipient = domain.digest.recipient or self.env.DIGEST_RECIPIENT or self.env.GMAIL_USER
+                    raw_recipient = domain.digest.recipient or self.env.DIGEST_RECIPIENT or self.env.GMAIL_USER
+                    recipient = self.env.GMAIL_USER if raw_recipient in ("your_email@gmail.com", "your_email@example.com", "") else raw_recipient
                     digest_sent = self.email_notifier.send_executive_digest(
                         recipient=recipient,
                         display_name=domain.display_name,
