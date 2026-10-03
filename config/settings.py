@@ -100,6 +100,10 @@ class EnvSettings(BaseSettings):
 def load_yaml_config(config_path: Optional[Path] = None) -> YamlConfig:
     if config_path is None:
         config_path = PROJECT_ROOT / "config" / "domains.yaml"
+        if not config_path.exists():
+            example_path = PROJECT_ROOT / "config" / "domains.example.yaml"
+            if example_path.exists():
+                config_path = example_path
 
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found at: {config_path}")

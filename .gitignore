@@ -5,10 +5,17 @@ __pycache__/
 .venv/
 env/
 venv/
+.pytest_cache/
 
 # Environment & Secrets (Zero-Trust)
 .env
 *.env.local
+
+# Private Domain Configurations & Prompt Templates
+config/domains.yaml
+templates/*
+!templates/.gitkeep
+!templates/*.example
 
 # Project Local State & Logs
 CONTEXT.md

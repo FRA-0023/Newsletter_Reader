@@ -1,0 +1,82 @@
+version: "1.0"
+
+global:
+  imap_server: "imap.gmail.com"
+  imap_port: 993
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 465
+  max_retries: 3
+  inter_email_delay_seconds: 5.0
+  db_path: "data/state.db"
+
+daily_briefing:
+  enabled: true
+  schedule:
+    cron: "0 20 * * *"             # Cumulative daily briefing every evening at 20:00
+    timezone: "Europe/Rome"
+  subject_prefix: "[DAILY BRIEFING]"
+  prompt_template: "templates/daily_briefing.md"
+
+domains:
+  - id: "macro_economics"
+    display_name: "Macro Economics Weekly"
+    enabled: true
+    schedule:
+      cron: "0 17 * * *"             # Daily at 17:00
+      timezone: "Europe/Rome"
+    filter:
+      sender: "macro@example.com"
+      subject_contains: ""
+      stop_string: "Unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/macro_economics.md"
+      schema_type: "quantitative_metrics"
+    notion:
+      database_env_key: "NOTION_DB_MACRO"
+      layout_type: "bullet_metrics"
+    digest:
+      enabled: true
+      subject_prefix: "[MACRO DIGEST]"
+
+  - id: "crypto_market"
+    display_name: "Crypto Market Intelligence"
+    enabled: true
+    schedule:
+      cron: "30 13 * * 5"            # Friday at 13:30
+      timezone: "Europe/Rome"
+    filter:
+      sender: "crypto@example.com"
+      subject_contains: ""
+      stop_string: "Unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/crypto.md"
+      schema_type: "journalistic_editorial"
+    notion:
+      database_env_key: "NOTION_DB_CRYPTO"
+      layout_type: "editorial_sections"
+    digest:
+      enabled: true
+      subject_prefix: "[CRYPTO DIGEST]"
+
+  - id: "business_strategy"
+    display_name: "Business Strategy & Frameworks"
+    enabled: true
+    schedule:
+      cron: "0 18 * * *"             # Daily at 18:00
+      timezone: "Europe/Rome"
+    filter:
+      sender: "strategy@example.com"
+      subject_contains: ""
+      stop_string: "Unsubscribe"
+    ai:
+      model: "gemini-2.5-flash"
+      prompt_template: "templates/business_strategy.md"
+      schema_type: "business_framework"
+    notion:
+      database_env_key: "NOTION_DB_STRATEGY"
+      layout_type: "framework_table"
+    digest:
+      enabled: true
+      subject_prefix: "[STRATEGY DIGEST]"
