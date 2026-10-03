@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from pathlib import Path
 
-from config.settings import DomainConfig, GlobalRuntimeConfig, EnvSettings
+from config.settings import DomainConfig, GlobalRuntimeConfig, EnvSettings, resolve_language
 from src.core.models import RawEmail
 from src.adapters.sqlite_store import SQLiteStore
 from src.adapters.imap_client import ImapClient
@@ -94,6 +94,7 @@ class NewsletterEngine:
                     logger.error("GEMINI_API_KEY is not configured.")
                     break
 
+                target_lang = resolve_language(self.env.LANGUAGE, getattr(self.global_config, "language", "en"))
                 try:
                     extraction_result = self.gemini_client.extract_structured_content(
                         template_path=domain.ai.prompt_template,
@@ -102,7 +103,7 @@ class NewsletterEngine:
                         schema_type=domain.ai.schema_type,
                         model_name=domain.ai.model,
                         max_retries=self.global_config.max_retries,
-                        language=self.env.LANGUAGE,
+                        language=target_lang,
                     )
                 except QuotaExhaustedError as e:
                     logger.critical(f"Aborting domain processing due to Gemini quota exhaustion: {e}")

@@ -16,15 +16,34 @@ from src.daemon import run_daemon_loop
 
 
 def setup_logger(level_name: str = "INFO") -> None:
-    if hasattr(sys.stdout, "reconfigure"):
-        try:
-            sys.stdout.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
+    handlers = []
+    if sys.stdout is not None:
+        if hasattr(sys.stdout, "reconfigure"):
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+        handlers.append(logging.StreamHandler(sys.stdout))
+
+    # Persistent file logger in data/app.log (vital for headless / pythonw.exe Task Scheduler execution)
+    log_dir = PROJECT_ROOT / "data"
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "app.log"
+    from logging.handlers import RotatingFileHandler
+    handlers.append(
+        RotatingFileHandler(
+            log_file,
+            maxBytes=5_000_000,
+            backupCount=3,
+            encoding="utf-8",
+        )
+    )
+
     logging.basicConfig(
         level=getattr(logging, level_name.upper(), logging.INFO),
         format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=handlers,
+        force=True,
     )
 
 

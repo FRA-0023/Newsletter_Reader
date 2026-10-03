@@ -55,7 +55,7 @@ class GeminiClient:
             "fr": "French",
             "de": "German",
         }
-        target_lang = lang_names.get(language.lower(), "English")
+        target_lang = lang_names.get((language or "en").strip().lower(), "English")
 
         lang_directive = (
             f"\n\n# MANDATORY OUTPUT LANGUAGE DIRECTIVE\n"

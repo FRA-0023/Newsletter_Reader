@@ -23,3 +23,27 @@ def test_sqlite_store_idempotency(tmp_path: Path):
     assert not store.is_processed("<different-id@domain.com>")
 
     store.close()
+
+
+def test_email_notifier_cleaner():
+    from src.adapters.email_notifier import _clean_html_markdown, _clean_plain_text
+
+    raw_bullet = "**Principio:** Il valore non dipende dal costo"
+    html_cleaned = _clean_html_markdown(raw_bullet)
+    assert '<strong style="color: #0f172a; font-weight: 700;">Principio:</strong>' in html_cleaned
+    assert not html_cleaned.startswith("*Principio:**")
+
+    plain_cleaned = _clean_plain_text("•*Principio:** Il valore")
+    assert plain_cleaned == "**Principio:** Il valore"
+
+
+def test_language_resolution_cascade():
+    from config.settings import resolve_language
+
+    assert resolve_language("it", "en") == "it"
+    assert resolve_language(None, "it") == "it"
+    assert resolve_language("", "it") == "it"
+    assert resolve_language(None, None) == "en"
+    assert resolve_language("", "") == "en"
+    assert resolve_language("ES", "it") == "es"
+

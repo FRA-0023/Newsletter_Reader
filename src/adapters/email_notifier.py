@@ -10,6 +10,16 @@ from src.core.schemas import ExecutiveDigest
 logger = logging.getLogger(__name__)
 
 
+def _clean_plain_text(text: str) -> str:
+    """Cleans markdown symbols and heals broken bold markers for plain-text email fallbacks."""
+    if not text:
+        return ""
+    cleaned = re.sub(r'^[•\-\s]+', '', text.strip())
+    cleaned = re.sub(r'^\*(?!\*)\s+', '', cleaned)
+    cleaned = re.sub(r'(?<!\*)\*([A-Za-z0-9À-ÿ\s\-_/]+):\*\*', r'**\1:**', cleaned)
+    return cleaned
+
+
 def _clean_html_markdown(text: str) -> str:
     """
     Sanitizes LLM-generated string fields by converting markdown tokens to semantic HTML.
@@ -19,9 +29,16 @@ def _clean_html_markdown(text: str) -> str:
     """
     if not text:
         return ""
-    cleaned = re.sub(r'^[•\-\*]\s*', '', text.strip())
+    # Strip any genuine leading bullets or dashes, preserving double asterisks for bold
+    cleaned = re.sub(r'^[•\-\s]+', '', text.strip())
+    cleaned = re.sub(r'^\*(?!\*)\s+', '', cleaned)
+    # Heal malformed bold markers if LLM emits single leading star with double trailing (e.g. *Label:**)
+    cleaned = re.sub(r'(?<!\*)\*([A-Za-z0-9À-ÿ\s\-_/]+):\*\*', r'**\1:**', cleaned)
+    # Bold: **phrase** -> <strong style="color: #0f172a; font-weight: 700;">phrase</strong>
     cleaned = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #0f172a; font-weight: 700;">\1</strong>', cleaned)
+    # Italic: *phrase* -> <em>phrase</em> (ensuring not adjacent to other asterisks)
     cleaned = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<em>\1</em>', cleaned)
+    # Inline code: `token` -> <code>token</code>
     cleaned = re.sub(r'`(.*?)`', r'<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 12px;">\1</code>', cleaned)
     return cleaned
 
@@ -62,11 +79,11 @@ class EmailNotifier:
             notion_footer = f"\n\nArchiviato su Notion: https://notion.so/{clean_id}"
 
         body_text = f"""{display_name} — {date_str}
-Headline: {digest.headline}
+Headline: {_clean_plain_text(digest.headline)}
 
-• DATI: {digest.bullet_1}
-• DINAMICA: {digest.bullet_2}
-• TAKEAWAY: {digest.bullet_3}{notion_footer}
+• DATI: {_clean_plain_text(digest.bullet_1)}
+• DINAMICA: {_clean_plain_text(digest.bullet_2)}
+• TAKEAWAY: {_clean_plain_text(digest.bullet_3)}{notion_footer}
 """
 
         notion_url = f"https://notion.so/{notion_page_id.replace('-', '')}" if notion_page_id else ""

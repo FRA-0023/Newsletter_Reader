@@ -107,7 +107,7 @@ class SQLiteStore:
                 bullet_3,
                 notion_page_id,
                 1 if digest_sent else 0,
-                datetime.utcnow(),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
         conn.commit()
@@ -163,7 +163,7 @@ class SQLiteStore:
                 domain_count,
                 raw_json,
                 notion_page_id,
-                datetime.utcnow(),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ),
         )
         conn.commit()

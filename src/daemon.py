@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config.settings import load_yaml_config, EnvSettings
 from src.adapters.sqlite_store import SQLiteStore
+from src.adapters.gemini_client import QuotaExhaustedError
 from src.core.engine import NewsletterEngine
 from src.core.daily_briefing import DailyBriefingService
 
@@ -32,6 +33,14 @@ def run_daemon_loop() -> int:
             logger.info(f"Cron triggered for domain: [{domain_cfg.id}] '{domain_cfg.display_name}'")
             try:
                 engine.process_domain(domain_cfg)
+            except QuotaExhaustedError as e:
+                logger.critical(
+                    f"[QUOTA FATAL] Gemini API quota completely exhausted during job '{domain_cfg.id}'. "
+                    f"Shutting down daemon immediately: {e}"
+                )
+                scheduler.shutdown(wait=False)
+                store.close()
+                sys.exit(2)
             except Exception as e:
                 logger.error(f"Error executing job for domain '{domain_cfg.id}': {e}", exc_info=True)
         return job
@@ -65,8 +74,23 @@ def run_daemon_loop() -> int:
         b_tz = config.daily_briefing.schedule.timezone
         try:
             b_trigger = CronTrigger.from_crontab(b_cron, timezone=b_tz)
+            def daily_briefing_job():
+                logger.info("Cron triggered for Executive Daily Intelligence Briefing")
+                try:
+                    daily_briefing_svc.generate_and_send()
+                except QuotaExhaustedError as e:
+                    logger.critical(
+                        f"[QUOTA FATAL] Gemini API quota completely exhausted during Daily Briefing. "
+                        f"Shutting down daemon immediately: {e}"
+                    )
+                    scheduler.shutdown(wait=False)
+                    store.close()
+                    sys.exit(2)
+                except Exception as e:
+                    logger.error(f"Error executing Daily Briefing: {e}", exc_info=True)
+
             scheduler.add_job(
-                lambda: daily_briefing_svc.generate_and_send(),
+                daily_briefing_job,
                 trigger=b_trigger,
                 id="job_daily_briefing",
                 name="Executive Daily Intelligence Briefing",
