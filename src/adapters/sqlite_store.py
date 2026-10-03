@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
+from typing import Optional, List, Dict, Any
+from datetime import datetime, date
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,12 +28,25 @@ class SQLiteStore:
                 message_id TEXT PRIMARY KEY,
                 domain_id TEXT NOT NULL,
                 subject TEXT,
+                headline TEXT,
+                bullet_1 TEXT,
+                bullet_2 TEXT,
+                bullet_3 TEXT,
                 notion_page_id TEXT,
                 digest_sent INTEGER DEFAULT 0,
                 processed_at TIMESTAMP NOT NULL
             )
             """
         )
+        # Migration: ensure newly added columns exist if table was already created
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(processed_emails)").fetchall()]
+        for col in ["headline", "bullet_1", "bullet_2", "bullet_3"]:
+            if col not in columns:
+                try:
+                    conn.execute(f"ALTER TABLE processed_emails ADD COLUMN {col} TEXT")
+                except Exception:
+                    pass
+
         conn.commit()
         logger.debug(f"SQLiteStore initialized at: {self.db_path}")
 
@@ -54,18 +67,26 @@ class SQLiteStore:
         subject: str,
         notion_page_id: Optional[str] = None,
         digest_sent: bool = False,
+        headline: Optional[str] = None,
+        bullet_1: Optional[str] = None,
+        bullet_2: Optional[str] = None,
+        bullet_3: Optional[str] = None,
     ) -> None:
         conn = self._get_connection()
         conn.execute(
             """
             INSERT OR REPLACE INTO processed_emails
-            (message_id, domain_id, subject, notion_page_id, digest_sent, processed_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (message_id, domain_id, subject, headline, bullet_1, bullet_2, bullet_3, notion_page_id, digest_sent, processed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 message_id.strip(),
                 domain_id,
                 subject,
+                headline,
+                bullet_1,
+                bullet_2,
+                bullet_3,
                 notion_page_id,
                 1 if digest_sent else 0,
                 datetime.utcnow(),
@@ -73,6 +94,27 @@ class SQLiteStore:
         )
         conn.commit()
         logger.info(f"Recorded processed message {message_id} for domain '{domain_id}'.")
+
+    def get_records_by_date(self, target_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieves all emails processed on a specific calendar date (UTC/local ISO format YYYY-MM-DD).
+        If target_date is omitted, defaults to today's date.
+        """
+        if target_date is None:
+            target_date = date.today().isoformat()
+
+        conn = self._get_connection()
+        cur = conn.execute(
+            """
+            SELECT message_id, domain_id, subject, headline, bullet_1, bullet_2, bullet_3, notion_page_id, digest_sent, processed_at
+            FROM processed_emails
+            WHERE date(processed_at) = date(?)
+            ORDER BY processed_at ASC
+            """,
+            (target_date,),
+        )
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
 
     def close(self) -> None:
         if self._conn is not None:

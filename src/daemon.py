@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from config.settings import load_yaml_config, EnvSettings
 from src.adapters.sqlite_store import SQLiteStore
 from src.core.engine import NewsletterEngine
+from src.core.daily_briefing import DailyBriefingService
 
 logger = logging.getLogger("daemon")
 
@@ -22,6 +23,7 @@ def run_daemon_loop() -> int:
     env = EnvSettings()
     store = SQLiteStore(config.global_.db_path)
     engine = NewsletterEngine(config.global_, env, store)
+    daily_briefing_svc = DailyBriefingService(config.global_, env, store, config)
 
     scheduler = BlockingScheduler()
 
@@ -56,6 +58,24 @@ def run_daemon_loop() -> int:
             logger.info(f"Registered cron [{cron_str}] ({tz}) for domain '{domain.id}'")
         except Exception as e:
             logger.error(f"Failed to parse cron schedule '{cron_str}' for domain '{domain.id}': {e}")
+
+    # Register Daily Briefing Job
+    if config.daily_briefing and config.daily_briefing.enabled:
+        b_cron = config.daily_briefing.schedule.cron.strip()
+        b_tz = config.daily_briefing.schedule.timezone
+        try:
+            b_trigger = CronTrigger.from_crontab(b_cron, timezone=b_tz)
+            scheduler.add_job(
+                lambda: daily_briefing_svc.generate_and_send(),
+                trigger=b_trigger,
+                id="job_daily_briefing",
+                name="Executive Daily Intelligence Briefing",
+                replace_existing=True,
+            )
+            registered_jobs += 1
+            logger.info(f"Registered Daily Briefing cron [{b_cron}] ({b_tz})")
+        except Exception as e:
+            logger.error(f"Failed to register Daily Briefing cron '{b_cron}': {e}")
 
     logger.info(f"Total jobs scheduled: {registered_jobs}")
 

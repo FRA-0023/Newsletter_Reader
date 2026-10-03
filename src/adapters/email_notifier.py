@@ -69,3 +69,36 @@ Headline: {digest.headline}
         except Exception as e:
             logger.error(f"Failed to send executive digest email: {e}", exc_info=True)
             return False
+
+    def send_daily_briefing(
+        self,
+        recipient: str,
+        subject: str,
+        body_text: str,
+        body_html: Optional[str] = None,
+    ) -> bool:
+        if not self.username or not self.password:
+            logger.warning("SMTP credentials not configured. Skipping daily briefing email.")
+            return False
+
+        to_email = recipient or self.username
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Executive Intelligence Briefing <{self.username}>"
+        msg["To"] = to_email
+
+        msg.attach(MIMEText(body_text, "plain", "utf-8"))
+        if body_html:
+            msg.attach(MIMEText(body_html, "html", "utf-8"))
+
+        try:
+            logger.info(f"Sending daily briefing email to {to_email} via SMTP SSL {self.smtp_server}:{self.smtp_port}...")
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, timeout=20) as server:
+                server.login(self.username, self.password)
+                server.send_message(msg)
+            logger.info("Daily briefing email sent successfully.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send daily briefing email: {e}", exc_info=True)
+            return False

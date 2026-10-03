@@ -97,6 +97,38 @@ def cmd_daemon(args) -> int:
     return run_daemon_loop()
 
 
+def cmd_daily_briefing(args) -> int:
+    from src.core.daily_briefing import DailyBriefingService
+
+    env = EnvSettings()
+    setup_logger(env.LOG_LEVEL)
+    logger = logging.getLogger("cli.daily_briefing")
+
+    config = load_yaml_config()
+    store = SQLiteStore(config.global_.db_path)
+    try:
+        service = DailyBriefingService(config.global_, env, store, config)
+        success = service.generate_and_send(
+            target_date=args.date,
+            dry_run=args.dry_run,
+            recipient_override=args.recipient,
+        )
+        if success:
+            logger.info("Daily Briefing generated and processed successfully.")
+            return 0
+        else:
+            logger.warning("Daily Briefing skipped (no records found for date or generation failed).")
+            return 0
+    except QuotaExhaustedError as e:
+        logger.critical(f"\n[FATAL] {e}\nEsecuzione terminata.")
+        return 2
+    except Exception as e:
+        logger.error(f"Daily Briefing failed: {e}", exc_info=True)
+        return 1
+    finally:
+        store.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Newsletter_Reader: Unified Headless Newsletter Processing Engine"
@@ -112,6 +144,13 @@ def main() -> None:
     sub_run.add_argument("--domain", "-d", help="ID of domain to process (e.g. crypto, world_population)")
     sub_run.add_argument("--dry-run", action="store_true", help="Execute without Notion write or Gmail flag")
     sub_run.set_defaults(func=cmd_run)
+
+    # daily-briefing
+    sub_briefing = subparsers.add_parser("daily-briefing", help="Generate and send daily cumulative executive briefing")
+    sub_briefing.add_argument("--date", help="Target date YYYY-MM-DD (defaults to today)")
+    sub_briefing.add_argument("--dry-run", action="store_true", help="Synthesize and preview without sending email")
+    sub_briefing.add_argument("--recipient", help="Override recipient email address")
+    sub_briefing.set_defaults(func=cmd_daily_briefing)
 
     # daemon
     sub_daemon = subparsers.add_parser("daemon", help="Run persistent APScheduler daemon")

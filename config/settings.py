@@ -57,9 +57,19 @@ class GlobalRuntimeConfig(BaseModel):
     db_path: str = "data/state.db"
 
 
+class DailyBriefingScheduleConfig(BaseModel):
+    enabled: bool = True
+    schedule: ScheduleConfig = Field(
+        default_factory=lambda: ScheduleConfig(cron="0 20 * * *", timezone="Europe/Rome")
+    )
+    subject_prefix: str = "[DAILY BRIEFING]"
+    prompt_template: str = "templates/daily_briefing.md"
+
+
 class YamlConfig(BaseModel):
     version: str = "1.0"
     global_: GlobalRuntimeConfig = Field(alias="global", default_factory=GlobalRuntimeConfig)
+    daily_briefing: DailyBriefingScheduleConfig = Field(default_factory=DailyBriefingScheduleConfig)
     domains: List[DomainConfig] = Field(default_factory=list)
 
 

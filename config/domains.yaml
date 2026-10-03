@@ -9,6 +9,14 @@ global:
   inter_email_delay_seconds: 5.0
   db_path: "data/state.db"
 
+daily_briefing:
+  enabled: true
+  schedule:
+    cron: "0 20 * * *"             # Riepilogo cumulativo ogni sera alle 20:00
+    timezone: "Europe/Rome"
+  subject_prefix: "[DAILY BRIEFING]"
+  prompt_template: "templates/daily_briefing.md"
+
 domains:
   - id: "world_population"
     display_name: "World Population Newsletter"

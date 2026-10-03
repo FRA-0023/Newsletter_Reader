@@ -147,6 +147,10 @@ class NewsletterEngine:
                     subject=email_item.subject,
                     notion_page_id=notion_page_id,
                     digest_sent=digest_sent,
+                    headline=digest.headline,
+                    bullet_1=digest.bullet_1,
+                    bullet_2=digest.bullet_2,
+                    bullet_3=digest.bullet_3,
                 )
 
                 try:

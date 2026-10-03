@@ -91,11 +91,27 @@ class FrameworkExtractionOutput(BaseModel):
     notion_data: BusinessFrameworkPayload
 
 
+# ─── CANALE CUMULATIVO: DAILY INTELLIGENCE BRIEFING ─────────────────
+class DomainBriefingEntry(BaseModel):
+    domain_name: str = Field(description="Nome della newsletter o dominio (es. 'The Crypto Gateway', 'Mozi Minute').")
+    core_thesis: str = Field(description="Tesi o dinamica principale estratta oggi (1-2 frasi dense).")
+    key_takeaways: List[str] = Field(description="2-3 bullet point chirurgici dei fatti e delle decisioni più importanti.")
+    notion_url: Optional[str] = Field(default=None, description="URL diretto alla pagina Notion se disponibile.")
+
+
+class DailyBriefingOutput(BaseModel):
+    executive_title: str = Field(description="Titolo esecutivo del briefing giornaliero in italiano (max 10 parole).")
+    macro_narrative: str = Field(description="Sintesi integrata ad altissima densità che collega i diversi temi della giornata in una visione sistemica (2-3 paragrafi compatti).")
+    domain_breakdowns: List[DomainBriefingEntry] = Field(description="Riepilogo strutturato per ciascun dominio processato oggi.")
+    actionable_priority: str = Field(description="La singola mossa o priorità strategico-operativa da tenere a mente per domani.")
+
+
 # ─── SCHEMA REGISTRY PER DISPATCHING DINAMICO ────────────────────────
 SCHEMA_REGISTRY: Dict[str, Type[BaseModel]] = {
     "quantitative_metrics": QuantitativeExtractionOutput,
     "journalistic_editorial": EditorialExtractionOutput,
     "business_framework": FrameworkExtractionOutput,
+    "daily_briefing": DailyBriefingOutput,
 }
 
 

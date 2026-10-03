@@ -123,7 +123,11 @@ Recommended for local developer machines to achieve **0 MB RAM footprint** at id
 # 3. Dry-run pipeline testing (no remote writes)
 .\.venv\Scripts\python.exe -m src.cli run --domain tristan_burns --dry-run
 
-# 4. Register silent background task in Windows Task Scheduler (runs invisible at boot)
+# 4. Generate & Send Cumulative Daily Intelligence Briefing (synthesizes all of today's newsletters)
+.\.venv\Scripts\python.exe -m src.cli daily-briefing --dry-run   # Preview
+.\.venv\Scripts\python.exe -m src.cli daily-briefing             # Send live memo
+
+# 5. Register silent background task in Windows Task Scheduler (runs invisible at boot)
 powershell -ExecutionPolicy Bypass -File .\scripts\register_startup_task.ps1
 ```
 
