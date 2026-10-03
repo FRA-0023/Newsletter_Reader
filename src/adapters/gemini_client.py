@@ -32,6 +32,7 @@ class GeminiClient:
         schema_type: str,
         model_name: str = "gemini-2.5-flash",
         max_retries: int = 3,
+        language: str = "en",
     ) -> BaseModel:
         p_path = Path(template_path)
         if not p_path.is_absolute():
@@ -45,7 +46,24 @@ class GeminiClient:
         template_content = p_path.read_text(encoding="utf-8")
         schema_class = get_schema_for_type(schema_type)
 
-        full_prompt = f"""{template_content}
+        # Dynamic localization mapping: decoupling prompt templates on disk (kept in canonical English)
+        # from operator language preferences avoids template duplication while guaranteeing target output language.
+        lang_names = {
+            "it": "Italian",
+            "en": "English",
+            "es": "Spanish",
+            "fr": "French",
+            "de": "German",
+        }
+        target_lang = lang_names.get(language.lower(), "English")
+
+        lang_directive = (
+            f"\n\n# MANDATORY OUTPUT LANGUAGE DIRECTIVE\n"
+            f"You MUST generate all output fields (headlines, summaries, takeaways, narratives, table cells) strictly in {target_lang}.\n"
+            f"Preserve standard international technology, finance, and business terms in English (e.g., 'pricing power', 'leverage', 'framework', 'system design', 'trade-off', 'inflows')."
+        )
+
+        full_prompt = f"""{template_content}{lang_directive}
 
 # INPUT EMAIL DATA
 Subject: {subject}

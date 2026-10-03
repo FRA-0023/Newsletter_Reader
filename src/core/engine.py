@@ -102,6 +102,7 @@ class NewsletterEngine:
                         schema_type=domain.ai.schema_type,
                         model_name=domain.ai.model,
                         max_retries=self.global_config.max_retries,
+                        language=self.env.LANGUAGE,
                     )
                 except QuotaExhaustedError as e:
                     logger.critical(f"Aborting domain processing due to Gemini quota exhaustion: {e}")

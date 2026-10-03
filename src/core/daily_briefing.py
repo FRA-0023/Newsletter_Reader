@@ -88,14 +88,43 @@ Notion Page: {notion_url}
                 body=aggregated_input,
                 schema_type="daily_briefing",
                 model_name="gemini-2.5-flash",
+                language=self.env.LANGUAGE,
             )
         except Exception as e:
             logger.error(f"Failed to generate Daily Briefing via Gemini: {e}", exc_info=True)
             return False
 
+        # Dual-layer persistence: First attempt Notion sync if a target database is configured.
+        # Notion provides high-visibility executive mobile access and inter-page relational navigation.
+        notion_page_id = None
+        if not dry_run and self.env.NOTION_DB_DAILY_BRIEFING and self.notion_client:
+            try:
+                notion_page_id = self.notion_client.save_daily_briefing_page(
+                    database_id=self.env.NOTION_DB_DAILY_BRIEFING,
+                    date_str=target_date,
+                    data=briefing_data,
+                    language=self.env.LANGUAGE,
+                )
+                logger.info(f"Daily Briefing archived in Notion database with Page ID: {notion_page_id}")
+            except Exception as e:
+                logger.error(f"Failed to persist Daily Briefing to Notion: {e}", exc_info=True)
+
+        # Local SQLite state persistence guarantees offline auditability and idempotency.
+        # This prevents total data loss if network partitions disrupt Notion or SMTP delivery.
+        if not dry_run:
+            self.store.record_daily_briefing(
+                date_str=target_date,
+                executive_title=briefing_data.executive_title,
+                macro_narrative=briefing_data.macro_narrative,
+                actionable_priority=briefing_data.actionable_priority,
+                domain_count=len(briefing_data.domain_breakdowns),
+                raw_json=briefing_data.model_dump_json(),
+                notion_page_id=notion_page_id,
+            )
+
         # Format Text and HTML email
         subject_line = f"[DAILY INTEL BRIEFING] {target_date} — {briefing_data.executive_title}"
-        body_text, body_html = self._render_email(target_date, briefing_data)
+        body_text, body_html = self._render_email(target_date, briefing_data, notion_page_id=notion_page_id)
 
         if dry_run:
             logger.info("[DRY-RUN] Daily Briefing synthesized successfully:")
@@ -116,7 +145,38 @@ Notion Page: {notion_url}
             logger.info(f"Daily Briefing for {target_date} dispatched to {recipient}.")
         return success
 
-    def _render_email(self, date_str: str, data: DailyBriefingOutput) -> tuple[str, str]:
+    def _render_email(
+        self,
+        date_str: str,
+        data: DailyBriefingOutput,
+        notion_page_id: Optional[str] = None,
+    ) -> tuple[str, str]:
+        # Internationalized string catalog: renders email UI chrome in the operator's configured language.
+        is_it = self.env.LANGUAGE.lower() == "it"
+
+        lbl_header = "☕ Daily Intelligence Briefing"
+        lbl_read_time = "Lettura rapida: 60 sec" if is_it else "Quick read: 60 sec"
+        lbl_date = "Data:" if is_it else "Date:"
+        lbl_overview = "Panoramica in Breve" if is_it else "Executive Overview"
+        lbl_highlights = "I Punti Salienti di Oggi" if is_it else "Today's Core Highlights"
+        lbl_priority = "🎯 Spunto per Domani" if is_it else "🎯 Actionable Priority for Tomorrow"
+        lbl_notion_btn = "Approfondisci su Notion &rarr;" if is_it else "Explore on Notion &rarr;"
+        lbl_footer = (
+            "Newsletter_Reader &bull; Gli approfondimenti completi sono archiviati sul tuo Notion."
+            if is_it
+            else "Newsletter_Reader &bull; Full deep-dive notes and frameworks are archived in your Notion workspace."
+        )
+
+        notion_briefing_bar = ""
+        if notion_page_id:
+            clean_pid = notion_page_id.replace("-", "")
+            btn_txt = "Apri Briefing su Notion" if is_it else "Open Briefing on Notion"
+            notion_briefing_bar = (
+                f"<div style='margin-bottom: 18px; text-align: right;'>"
+                f"<a href='https://notion.so/{clean_pid}' style='font-size: 12px; font-weight: 600; color: #2563eb; text-decoration: none; background: #eff6ff; padding: 5px 12px; border-radius: 6px; border: 1px solid #bfdbfe;'>🔗 {btn_txt} &rarr;</a>"
+                f"</div>"
+            )
+
         # Plain text rendering
         lines: List[str] = [
             f"DAILY INTELLIGENCE BRIEFING — {date_str}",
@@ -160,7 +220,7 @@ Notion Page: {notion_url}
             ])
             notion_link = (
                 f"<div style='margin-top: 14px;'>"
-                f"<a href='{d.notion_url}' style='display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 600; padding: 7px 15px; border-radius: 6px;'>Approfondisci su Notion &rarr;</a>"
+                f"<a href='{d.notion_url}' style='display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 600; padding: 7px 15px; border-radius: 6px;'>{lbl_notion_btn}</a>"
                 f"</div>"
                 if d.notion_url else ""
             )
@@ -181,30 +241,32 @@ Notion Page: {notion_url}
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 24px 12px; line-height: 1.5;">
     <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 24px;">
         <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 20px;">
-            <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">☕ Daily Intelligence Briefing</span>
+            <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">{lbl_header}</span>
             <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 6px 0 2px 0; line-height: 1.3;">{data.executive_title}</h1>
-            <span style="font-size: 12px; color: #94a3b8;">Data: {date_str} • Lettura rapida: 60 sec</span>
+            <span style="font-size: 12px; color: #94a3b8;">{lbl_date} {date_str} • {lbl_read_time}</span>
         </div>
 
+        {notion_briefing_bar}
+
         <div style="margin-bottom: 22px; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 16px;">
-            <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.03em;">Panoramica in Breve</span>
+            <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.03em;">{lbl_overview}</span>
             <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0;">
                 {data.macro_narrative}
             </p>
         </div>
 
         <div style="margin-bottom: 22px;">
-            <h2 style="font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0 0 12px 0; font-weight: 700;">I Punti Salienti di Oggi</h2>
+            <h2 style="font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0 0 12px 0; font-weight: 700;">{lbl_highlights}</h2>
             {"".join(html_domains)}
         </div>
 
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; margin-bottom: 22px;">
-            <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">🎯 Spunto per Domani</span>
+            <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">{lbl_priority}</span>
             <p style="margin: 6px 0 0 0; color: #14532d; font-weight: 600; font-size: 13.5px; line-height: 1.5;">{data.actionable_priority}</p>
         </div>
 
         <div style="font-size: 11.5px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center;">
-            Newsletter_Reader &bull; Gli approfondimenti e le schede complete sono archiviati sul tuo Notion.
+            {lbl_footer}
         </div>
     </div>
 </body>

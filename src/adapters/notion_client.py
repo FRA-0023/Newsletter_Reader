@@ -8,6 +8,7 @@ from src.core.schemas import (
     QuantitativeMetricsPayload,
     JournalisticEditorialPayload,
     BusinessFrameworkPayload,
+    DailyBriefingOutput,
 )
 
 logger = logging.getLogger(__name__)
@@ -296,3 +297,139 @@ class NotionClientAdapter:
             )
 
         return title, blocks
+
+    def save_daily_briefing_page(
+        self,
+        database_id: str,
+        date_str: str,
+        data: DailyBriefingOutput,
+        language: str = "en",
+    ) -> str:
+        """
+        Creates a consolidated executive briefing page in the user's dedicated Daily Briefings Notion database.
+        
+        Trade-off: Rather than flattening the daily summary into raw text, we generate structured Notion blocks
+        (overview callout, thematic domain headings, key takeaway bullets, and direct back-links to each
+        underlying newsletter page). This elevates Notion into an interactive executive knowledge repository.
+        """
+        if not database_id:
+            raise ValueError("Database ID must not be empty.")
+
+        iso_date = self._parse_date_to_iso(date_str)
+        is_it = language.lower() == "it"
+
+        blocks: List[Dict[str, Any]] = []
+
+        # 1. Macro Overview Callout Block
+        overview_title = "Panoramica in Breve: " if is_it else "Executive Overview: "
+        blocks.append(
+            {
+                "object": "block",
+                "type": "callout",
+                "callout": {
+                    "icon": {"emoji": "☕"},
+                    "color": "blue_background",
+                    "rich_text": [
+                        {"type": "text", "text": {"content": overview_title, "annotations": {"bold": True}}},
+                        {"type": "text", "text": {"content": data.macro_narrative[:1800]}},
+                    ],
+                },
+            }
+        )
+
+        # 2. Section Heading
+        section_heading = "I Punti Salienti di Oggi" if is_it else "Today's Intelligence Breakdown"
+        blocks.append(
+            {
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": section_heading}}],
+                },
+            }
+        )
+
+        # 3. Domain Cards
+        for d in data.domain_breakdowns:
+            blocks.append(
+                {
+                    "object": "block",
+                    "type": "heading_3",
+                    "heading_3": {
+                        "rich_text": [{"type": "text", "text": {"content": d.domain_name}}],
+                    },
+                }
+            )
+            blocks.append(
+                {
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [
+                            {"type": "text", "text": {"content": d.core_thesis[:2000], "annotations": {"italic": True}}}
+                        ],
+                    },
+                }
+            )
+            for bullet in d.key_takeaways:
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [{"type": "text", "text": {"content": bullet[:2000]}}],
+                        },
+                    }
+                )
+            if d.notion_url:
+                link_text = "🔗 Apri approfondimento completo su Notion" if is_it else "🔗 Open full deep-dive note in Notion"
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {"content": link_text, "link": {"url": d.notion_url}},
+                                }
+                            ],
+                        },
+                    }
+                )
+
+        # 4. Actionable Priority Callout
+        priority_label = "🎯 Spunto per Domani: " if is_it else "🎯 Actionable Priority for Tomorrow: "
+        blocks.append(
+            {
+                "object": "block",
+                "type": "callout",
+                "callout": {
+                    "icon": {"emoji": "🎯"},
+                    "color": "green_background",
+                    "rich_text": [
+                        {"type": "text", "text": {"content": priority_label, "annotations": {"bold": True}}},
+                        {"type": "text", "text": {"content": data.actionable_priority[:1800]}},
+                    ],
+                },
+            }
+        )
+
+        logger.info(f"Creating Notion Daily Briefing page in DB {database_id[:8]}... with {len(blocks)} blocks")
+
+        response = self.client.pages.create(
+            parent={"database_id": database_id},
+            properties={
+                "Name": {
+                    "title": [{"text": {"content": data.executive_title[:100]}}]
+                },
+                "Received": {
+                    "date": {"start": iso_date}
+                },
+            },
+            children=blocks[:100],
+        )
+
+        page_id = response.get("id", "")
+        logger.info(f"Notion Daily Briefing page successfully created with ID: {page_id}")
+        return page_id

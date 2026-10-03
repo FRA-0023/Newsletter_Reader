@@ -93,6 +93,13 @@ class EnvSettings(BaseSettings):
     NOTION_DB_TRISTAN_BURNS: str = ""
     NOTION_DB_DAVID_COHEN: str = ""
 
+    # Global output language for LLM synthesis and email templates (e.g. 'en', 'it', 'es')
+    # Default is 'en' for open-source consistency; operator can set 'it' in local .env
+    LANGUAGE: str = "en"
+
+    # Optional dedicated Notion Database for Evening Daily Intelligence Briefings
+    NOTION_DB_DAILY_BRIEFING: Optional[str] = None
+
     DIGEST_RECIPIENT: str = ""
     DATA_DIR: str = str(PROJECT_ROOT / "data")
     LOG_LEVEL: str = "INFO"

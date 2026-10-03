@@ -121,6 +121,16 @@ Follow this step-by-step procedure to configure all credentials and services.
 
 ---
 
+### Step 4: Localization & Daily Briefings Archive (Optional)
+1. **Multi-Language Engine (`LANGUAGE`):**
+   * Set `LANGUAGE=en` (default) for international English summaries, or `LANGUAGE=it` for Italian.
+   * The engine dynamically injects target language directives into Gemini structured extraction while preserving standard international tech/business terminology.
+2. **Dedicated Notion Daily Briefings Archive (`NOTION_DB_DAILY_BRIEFING`):**
+   * Set `NOTION_DB_DAILY_BRIEFING=<32-char-database-id>` to create a synchronized executive page in Notion every evening.
+   * *Dual-Layer Resilience:* Even if Notion is unconfigured, all daily intelligence briefings are permanently committed to the local transactional SQLite ledger (`data/state.db`) for offline search and auditing.
+
+---
+
 ## 4. Multi-Domain Configuration (`config/domains.yaml`)
 
 Adding or updating newsletters requires **zero code changes**. Each newsletter is declared in `config/domains.yaml`:

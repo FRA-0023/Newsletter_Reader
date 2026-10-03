@@ -72,4 +72,21 @@ def test_sqlite_daily_records(tmp_path: Path):
     assert records[1]["domain_id"] == "mozi_minute"
     assert records[1]["bullet_1"] == "Value 10x price"
 
+    # Test daily_briefings dedicated table persistence and retrieval
+    store.record_daily_briefing(
+        date_str="2026-10-03",
+        executive_title="Divergenza Macro e Accelerazione",
+        macro_narrative="Sintesi panoramica delle dinamiche di giornata.",
+        actionable_priority="Testare pricing dinamico domani mattina.",
+        domain_count=2,
+        raw_json='{"status": "ok"}',
+        notion_page_id="notion-page-daily-briefing-123",
+    )
+
+    briefing = store.get_daily_briefing("2026-10-03")
+    assert briefing is not None
+    assert briefing["executive_title"] == "Divergenza Macro e Accelerazione"
+    assert briefing["domain_count"] == 2
+    assert briefing["notion_page_id"] == "notion-page-daily-briefing-123"
+
     store.close()

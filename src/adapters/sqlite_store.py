@@ -47,6 +47,24 @@ class SQLiteStore:
                 except Exception:
                     pass
 
+        # Audit & historical storage for cumulative daily briefings.
+        # Decouples email delivery from knowledge persistence, ensuring that even if SMTP fails
+        # or Notion sync drops, the synthesized intelligence snapshot for that date is permanently preserved.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_briefings (
+                date TEXT PRIMARY KEY,
+                executive_title TEXT NOT NULL,
+                macro_narrative TEXT NOT NULL,
+                actionable_priority TEXT NOT NULL,
+                domain_count INTEGER DEFAULT 0,
+                raw_json TEXT NOT NULL,
+                notion_page_id TEXT,
+                created_at TIMESTAMP NOT NULL
+            )
+            """
+        )
+
         conn.commit()
         logger.debug(f"SQLiteStore initialized at: {self.db_path}")
 
@@ -115,6 +133,57 @@ class SQLiteStore:
         )
         rows = cur.fetchall()
         return [dict(row) for row in rows]
+
+    def record_daily_briefing(
+        self,
+        date_str: str,
+        executive_title: str,
+        macro_narrative: str,
+        actionable_priority: str,
+        domain_count: int,
+        raw_json: str,
+        notion_page_id: Optional[str] = None,
+    ) -> None:
+        """
+        Stores or updates the daily executive briefing record for a calendar day.
+        Using INSERT OR REPLACE ensures idempotency if an operator re-triggers daily-briefing on the same day.
+        """
+        conn = self._get_connection()
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO daily_briefings
+            (date, executive_title, macro_narrative, actionable_priority, domain_count, raw_json, notion_page_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                date_str,
+                executive_title,
+                macro_narrative,
+                actionable_priority,
+                domain_count,
+                raw_json,
+                notion_page_id,
+                datetime.utcnow(),
+            ),
+        )
+        conn.commit()
+        logger.info(f"Recorded daily briefing for '{date_str}' (domains: {domain_count}) into SQLite state store.")
+
+    def get_daily_briefing(self, date_str: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the consolidated daily briefing record for a specific date if already generated.
+        """
+        conn = self._get_connection()
+        cur = conn.execute(
+            """
+            SELECT date, executive_title, macro_narrative, actionable_priority, domain_count, raw_json, notion_page_id, created_at
+            FROM daily_briefings
+            WHERE date = ?
+            """,
+            (date_str,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
 
     def close(self) -> None:
         if self._conn is not None:
