@@ -93,10 +93,10 @@ class FrameworkExtractionOutput(BaseModel):
 
 # ─── CANALE CUMULATIVO: DAILY INTELLIGENCE BRIEFING ─────────────────
 class DomainBriefingEntry(BaseModel):
-    domain_name: str = Field(description="Nome della newsletter o dominio (es. 'The Crypto Gateway', 'Mozi Minute').")
-    core_thesis: str = Field(description="Tesi o dinamica principale estratta oggi (1-2 frasi dense).")
-    key_takeaways: List[str] = Field(description="2-3 bullet point chirurgici dei fatti e delle decisioni più importanti.")
-    notion_url: Optional[str] = Field(default=None, description="URL diretto alla pagina Notion se disponibile.")
+    domain_name: str = Field(description="Nome della newsletter e del tema specifico (es. 'Tristan Burns — Jobs to Be Done in Data Teams').")
+    core_thesis: Optional[str] = Field(default=None, description="Opzionale sintesi diagnostica (omessa o null per evitare duplicazioni con i takeaways).")
+    key_takeaways: List[str] = Field(description="Esattamente 3 bullet point distinti e non sovrapposti (Problema/Contesto, Leva/Meccanismo, Azione/Decisione).")
+    notion_url: Optional[str] = Field(default=None, description="URL diretto alla pagina Notion della specifica email.")
 
 
 class DailyBriefingOutput(BaseModel):

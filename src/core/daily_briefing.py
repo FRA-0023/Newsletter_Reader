@@ -245,7 +245,6 @@ Notion Page: {notion_url}
 
         for d in data.domain_breakdowns:
             lines.append(f"■ {d.domain_name.upper()}")
-            lines.append(f"  Thesis: {_clean_plain_text(d.core_thesis)}")
             for b in d.key_takeaways:
                 lines.append(f"  • {_clean_plain_text(b)}")
             if d.notion_url:
@@ -283,10 +282,9 @@ Notion Page: {notion_url}
             )
             html_domains.append(f"""
             <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid {accent['border']}; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);">
-                <div style="margin-bottom: 8px;">
-                    <span style="background: {accent['badge_bg']}; color: {accent['badge_text']}; border: 1px solid {accent['badge_border']}; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em; display: inline-block;">{d.domain_name}</span>
+                <div style="margin-bottom: 12px;">
+                    <span style="background: {accent['badge_bg']}; color: {accent['badge_text']}; border: 1px solid {accent['badge_border']}; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.05em; display: inline-block;">{d.domain_name}</span>
                 </div>
-                <p style="margin: 0 0 12px 0; color: #475569; font-size: 13.5px; line-height: 1.5; font-style: italic;">{_clean_html_markdown(d.core_thesis)}</p>
                 <ul style="margin: 0; padding-left: 0; list-style: none;">
                     {bullets_html}
                 </ul>
