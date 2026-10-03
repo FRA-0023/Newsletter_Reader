@@ -24,20 +24,35 @@ DOMAIN_ACCENTS = [
 ]
 
 
+def _clean_plain_text(text: str) -> str:
+    """Cleans markdown symbols and heals broken bold markers for plain-text email fallbacks."""
+    if not text:
+        return ""
+    # Strip any genuine leading bullets (•, -, or single * followed by whitespace)
+    cleaned = re.sub(r'^[•\-\s]+', '', text.strip())
+    cleaned = re.sub(r'^\*(?!\*)\s+', '', cleaned)
+    # Heal malformed bold markers if LLM emits single leading star with double trailing (e.g. *Label:**)
+    cleaned = re.sub(r'(?<!\*)\*([A-Za-z0-9À-ÿ\s\-_/]+):\*\*', r'**\1:**', cleaned)
+    return cleaned
+
+
 def _clean_html_markdown(text: str) -> str:
     """
-    Converts LLM markdown tokens into styled HTML tags and strips accidental leading bullet symbols.
+    Converts LLM markdown tokens into styled HTML tags and safely handles bullet symbols.
     
     Trade-off: LLMs regularly emit markdown (e.g. **bold**, *italics*, `code`) even in structured JSON strings.
     Parsing via targeted regex guarantees flawless cross-client email rendering without heavy AST dependencies.
     """
     if not text:
         return ""
-    # Strip any accidental leading bullet points like "• ", "- ", or "* "
-    cleaned = re.sub(r'^[•\-\*]\s*', '', text.strip())
+    # Strip any genuine leading bullets or dashes, preserving double asterisks for bold
+    cleaned = re.sub(r'^[•\-\s]+', '', text.strip())
+    cleaned = re.sub(r'^\*(?!\*)\s+', '', cleaned)
+    # Heal malformed bold markers if LLM emits single leading star with double trailing (e.g. *Label:**)
+    cleaned = re.sub(r'(?<!\*)\*([A-Za-z0-9À-ÿ\s\-_/]+):\*\*', r'**\1:**', cleaned)
     # Bold: **phrase** -> <strong style="color: #0f172a; font-weight: 700;">phrase</strong>
     cleaned = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #0f172a; font-weight: 700;">\1</strong>', cleaned)
-    # Italic: *phrase* -> <em>phrase</em>
+    # Italic: *phrase* -> <em>phrase</em> (ensuring not adjacent to other asterisks)
     cleaned = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<em>\1</em>', cleaned)
     # Inline code: `token` -> <code>token</code>
     cleaned = re.sub(r'`(.*?)`', r'<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 12px;">\1</code>', cleaned)
@@ -230,9 +245,9 @@ Notion Page: {notion_url}
 
         for d in data.domain_breakdowns:
             lines.append(f"■ {d.domain_name.upper()}")
-            lines.append(f"  Thesis: {d.core_thesis}")
+            lines.append(f"  Thesis: {_clean_plain_text(d.core_thesis)}")
             for b in d.key_takeaways:
-                lines.append(f"  • {b}")
+                lines.append(f"  • {_clean_plain_text(b)}")
             if d.notion_url:
                 lines.append(f"  Notion: {d.notion_url}")
             lines.append("")

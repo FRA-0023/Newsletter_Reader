@@ -90,3 +90,25 @@ def test_sqlite_daily_records(tmp_path: Path):
     assert briefing["notion_page_id"] == "notion-page-daily-briefing-123"
 
     store.close()
+
+
+def test_markdown_cleaning_and_bullets():
+    from src.core.daily_briefing import _clean_html_markdown, _clean_plain_text
+
+    cases = [
+        ("**Principio:** I prodotti e i dati", '<strong style="color: #0f172a; font-weight: 700;">Principio:</strong> I prodotti e i dati'),
+        ("• **Risk:** Delivering only requested data", '<strong style="color: #0f172a; font-weight: 700;">Risk:</strong> Delivering only requested data'),
+        ("•*Risk:** Delivering only requested data", '<strong style="color: #0f172a; font-weight: 700;">Risk:</strong> Delivering only requested data'),
+        ("*Risk:** Delivering only requested data", '<strong style="color: #0f172a; font-weight: 700;">Risk:</strong> Delivering only requested data'),
+        ("- **Action:** Diagnostic questions", '<strong style="color: #0f172a; font-weight: 700;">Action:</strong> Diagnostic questions'),
+        ("* **Action:** Diagnostic questions", '<strong style="color: #0f172a; font-weight: 700;">Action:</strong> Diagnostic questions'),
+    ]
+
+    for raw, expected in cases:
+        assert _clean_html_markdown(raw) == expected
+
+    # Plain text cleaning
+    assert _clean_plain_text("•*Risk:** Delivering data") == "**Risk:** Delivering data"
+    assert _clean_plain_text("• **Risk:** Delivering data") == "**Risk:** Delivering data"
+    assert _clean_plain_text("- **Action:** Test") == "**Action:** Test"
+
