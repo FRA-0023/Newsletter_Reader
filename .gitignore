@@ -22,6 +22,7 @@ CONTEXT.md
 data/*.db
 data/*.db-journal
 data/*.log
+data/backups/
 *.log
 
 # IDE & OS
