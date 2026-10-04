@@ -22,6 +22,7 @@ CONTEXT.md
 data/*.db
 data/*.db-journal
 data/*.log
+data/*.lock
 data/backups/
 *.log
 

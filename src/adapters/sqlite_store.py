@@ -65,6 +65,17 @@ class SQLiteStore:
             """
         )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_executions (
+                job_id TEXT PRIMARY KEY,
+                last_run_at TIMESTAMP NOT NULL,
+                status TEXT NOT NULL,
+                error_message TEXT
+            )
+            """
+        )
+
         conn.commit()
         logger.debug(f"SQLiteStore initialized at: {self.db_path}")
 
@@ -184,6 +195,51 @@ class SQLiteStore:
         )
         row = cur.fetchone()
         return dict(row) if row else None
+
+    def record_job_execution(
+        self,
+        job_id: str,
+        status: str = "success",
+        error_message: Optional[str] = None,
+        run_at: Optional[datetime] = None,
+    ) -> None:
+        """Records or updates the execution status and timestamp of a scheduled or catch-up job."""
+        conn = self._get_connection()
+        ts = (run_at or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO job_executions
+            (job_id, last_run_at, status, error_message)
+            VALUES (?, ?, ?, ?)
+            """,
+            (job_id, ts, status, error_message),
+        )
+        conn.commit()
+        logger.debug(f"Recorded job execution for '{job_id}' (status={status}, ts={ts}).")
+
+    def get_last_job_execution(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves the latest execution record for a job, parsing last_run_at into a datetime object."""
+        conn = self._get_connection()
+        cur = conn.execute(
+            """
+            SELECT job_id, last_run_at, status, error_message
+            FROM job_executions
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        if isinstance(res.get("last_run_at"), str):
+            try:
+                res["last_run_at_dt"] = datetime.strptime(res["last_run_at"], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                res["last_run_at_dt"] = None
+        else:
+            res["last_run_at_dt"] = None
+        return res
 
     def close(self) -> None:
         if self._conn is not None:
