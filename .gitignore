@@ -18,6 +18,7 @@ templates/*
 !templates/*.example
 
 # Project Local State & Logs
+CONTEXT.md
 data/*.db
 data/*.db-journal
 data/*.log
