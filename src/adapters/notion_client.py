@@ -27,11 +27,13 @@ class NotionClientAdapter:
         Returns (title_prop_name, date_prop_name).
         Caches results per database_id to avoid redundant network calls.
         """
+        # Cache schema as (title_prop, date_prop, props)
         if database_id in self._schema_cache:
             return self._schema_cache[database_id]
 
         title_prop = "Name"
         date_prop = "Received"
+        props = {}
 
         try:
             db = self.client.databases.retrieve(database_id=database_id)
@@ -59,8 +61,8 @@ class NotionClientAdapter:
                 f"Could not inspect schema for database {database_id}: {e}. Falling back to default properties."
             )
 
-        self._schema_cache[database_id] = (title_prop, date_prop)
-        return title_prop, date_prop
+        self._schema_cache[database_id] = (title_prop, date_prop, props or {})
+        return title_prop, date_prop, props or {}
 
     def save_page(
         self,
@@ -69,6 +71,7 @@ class NotionClientAdapter:
         date_str: str,
         layout_type: str,
         notion_data: Any,
+        domain_id: Optional[str] = None,
     ) -> str:
         if not database_id:
             raise ValueError("Database ID must not be empty.")
@@ -77,16 +80,26 @@ class NotionClientAdapter:
         blocks: List[Dict[str, Any]] = []
         page_title = subject.strip()
 
+        # ARCHITETTURA: Gestione della formattazione specifica per dominio.
+        # Mozi Minute adotta storicamente il prefisso iconico '👃🏻 ' e rimuove 'Mozi Minute: '
+        # per preservare la leggibilità e la consistenza visiva nel database Notion 'Mozi Advices'.
+        is_mozi = (domain_id == "mozi_minute") or ("Mozi Minute:" in subject)
+
         if layout_type == "bullet_metrics":
             page_title, blocks = self._build_bullet_metrics(subject, notion_data)
         elif layout_type == "editorial_sections":
             page_title, blocks = self._build_editorial_sections(subject, notion_data)
         elif layout_type == "framework_table":
-            page_title, blocks = self._build_framework_table(subject, notion_data)
+            built_title, blocks = self._build_framework_table(subject, notion_data)
+            if is_mozi:
+                clean_name = (getattr(notion_data, "punchy_title", None) or subject).replace("Mozi Minute: ", "").strip()
+                page_title = f"👃🏻 {clean_name}"
+            else:
+                page_title = built_title
         else:
             raise ValueError(f"Unknown Notion layout_type: {layout_type}")
 
-        title_prop, date_prop = self._resolve_db_schema(database_id)
+        title_prop, date_prop, db_props = self._resolve_db_schema(database_id)
         properties: Dict[str, Any] = {
             title_prop: {
                 "title": [{"text": {"content": page_title[:100]}}]
@@ -97,7 +110,26 @@ class NotionClientAdapter:
                 "date": {"start": iso_date}
             }
 
-        logger.info(f"Creating Notion page in DB {database_id[:8]}... with {len(blocks)} blocks")
+        # ARCHITETTURA: Popolamento difensivo delle colonne tassonomiche di Notion.
+        # 1. Colonna 'Format' (status): se presente nel database, seleziona l'opzione coerente (es. 'Mozi Minute').
+        if "Format" in db_props and db_props["Format"].get("type") == "status":
+            fmt_options = [o.get("name") for o in db_props["Format"].get("status", {}).get("options", [])]
+            if is_mozi and "Mozi Minute" in fmt_options:
+                properties["Format"] = {"status": {"name": "Mozi Minute"}}
+
+        # 2. Colonna 'Content' (select): assegna la categoria estratta (es. 'Mentality', 'Sales', 'Strategy')
+        if "Content" in db_props and db_props["Content"].get("type") == "select":
+            category = getattr(notion_data, "category", None)
+            if category:
+                valid_opts = [o.get("name") for o in db_props["Content"].get("select", {}).get("options", [])]
+                matched_opt = next((opt for opt in valid_opts if opt.lower() == category.lower()), None)
+                if matched_opt:
+                    properties["Content"] = {"select": {"name": matched_opt}}
+                elif valid_opts:
+                    logger.warning(f"Category '{category}' non tra le opzioni valide {valid_opts}. Fallback su '{valid_opts[0]}'.")
+                    properties["Content"] = {"select": {"name": valid_opts[0]}}
+
+        logger.info(f"Creating Notion page in DB {database_id[:8]}... with {len(blocks)} blocks (props: {list(properties.keys())})")
 
         response = self.client.pages.create(
             parent={"database_id": database_id},

@@ -103,7 +103,13 @@ class NewsletterEngine:
                     logger.error("GEMINI_API_KEY is not configured.")
                     break
 
-                target_lang = resolve_language(self.env.LANGUAGE, getattr(self.global_config, "language", "en"))
+                # ARCHITETTURA: Risoluzione della lingua con gerarchia a cascata:
+                # domain.ai.language (override specifico) > LANGUAGE (.env) > global.language (domains.yaml)
+                target_lang = resolve_language(
+                    self.env.LANGUAGE,
+                    getattr(self.global_config, "language", "en"),
+                    domain.ai.language,
+                )
                 try:
                     extraction_result = self.gemini_client.extract_structured_content(
                         template_path=domain.ai.prompt_template,
@@ -144,6 +150,7 @@ class NewsletterEngine:
                             date_str=email_item.date_str,
                             layout_type=domain.notion.layout_type,
                             notion_data=notion_data,
+                            domain_id=domain.id,
                         )
                 except Exception as e:
                     logger.error(f"Notion save failed for '{email_item.subject}': {e}", exc_info=True)

@@ -23,6 +23,7 @@ class AIConfig(BaseModel):
     model: str = "gemini-2.5-flash"
     prompt_template: str
     schema_type: str
+    language: Optional[str] = None
 
 
 class NotionConfig(BaseModel):
@@ -126,13 +127,22 @@ def load_yaml_config(config_path: Optional[Path] = None) -> YamlConfig:
     return YamlConfig.model_validate(raw)
 
 
-def resolve_language(env_lang: Optional[str], yaml_lang: Optional[str]) -> str:
+def resolve_language(
+    env_lang: Optional[str] = None,
+    yaml_lang: Optional[str] = None,
+    domain_lang: Optional[str] = None,
+) -> str:
     """
     Determines output localization language following strict cascade hierarchy:
-    1. Explicit environment variable override (LANGUAGE in .env)
-    2. Global configuration in domains.yaml (global.language)
-    3. Canonical fallback: 'en' for open-source distribution consistency.
+    1. Per-domain configuration override (domain.ai.language)
+    2. Explicit environment variable override (LANGUAGE in .env)
+    3. Global configuration in domains.yaml (global.language)
+    4. Canonical fallback: 'en' for open-source distribution consistency.
     """
+    # ARCHITETTURA: Il singolo dominio ha precedenza assoluta (es. Mozi Minute deve rimanere in inglese
+    # per preservare la fedeltà terminologica e la coerenza del database Notion storico 'Mozi Advices').
+    if domain_lang and domain_lang.strip():
+        return domain_lang.strip().lower()
     if env_lang and env_lang.strip():
         return env_lang.strip().lower()
     if yaml_lang and yaml_lang.strip():

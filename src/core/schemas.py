@@ -76,6 +76,12 @@ class FrameworkTableEntry(BaseModel):
 
 
 class BusinessFrameworkPayload(BaseModel):
+    # ARCHITETTURA: Il campo category mappa direttamente le opzioni della colonna 'Content' (select)
+    # del database Notion di Alex Hormozi ('Mozi Advices'), garantendo continuità tassonomica con lo storico.
+    category: Optional[str] = Field(
+        default=None,
+        description="Categoria tematica del framework (esattamente una tra: 'Business Model', 'Ads', 'Sales', 'Growth Marketing', 'Strategy', 'Mentality')."
+    )
     punchy_title: str = Field(description="Titolo assertivo e ad alta intensità.")
     intro: str = Field(description="Breve introduzione al concetto chiave.")
     core_principle: str = Field(description="Spiegazione logica del principio di leva o profitto.")
