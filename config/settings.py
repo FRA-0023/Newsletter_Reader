@@ -32,7 +32,10 @@ class NotionConfig(BaseModel):
 
 
 class DigestConfig(BaseModel):
-    enabled: bool = True
+    # ARCHITETTURA / CARICO COGNITIVO: Disabilitato di default. L'unica notifica push
+    # via email desiderata è il Daily Briefing serale cumulativo delle 20:00.
+    # Le newsletter individuali alimentano unicamente Notion e il database SQLite.
+    enabled: bool = False
     subject_prefix: str = "[DIGEST]"
     recipient: Optional[str] = None
 

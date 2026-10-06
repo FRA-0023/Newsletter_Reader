@@ -37,7 +37,7 @@ domains:
       database_env_key: "NOTION_DB_MACRO"
       layout_type: "bullet_metrics"
     digest:
-      enabled: true
+      enabled: false
       subject_prefix: "[MACRO DIGEST]"
 
   - id: "crypto_market"
@@ -58,7 +58,7 @@ domains:
       database_env_key: "NOTION_DB_CRYPTO"
       layout_type: "editorial_sections"
     digest:
-      enabled: true
+      enabled: false
       subject_prefix: "[CRYPTO DIGEST]"
 
   - id: "business_strategy"
@@ -79,5 +79,5 @@ domains:
       database_env_key: "NOTION_DB_STRATEGY"
       layout_type: "framework_table"
     digest:
-      enabled: true
+      enabled: false
       subject_prefix: "[STRATEGY DIGEST]"
