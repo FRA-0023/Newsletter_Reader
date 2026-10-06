@@ -83,7 +83,7 @@ class ImapClient:
 
         for eid_bytes in email_ids:
             eid = eid_bytes.decode("utf-8")
-            status, msg_data = self.mail.fetch(eid, "(RFC822)")
+            status, msg_data = self.mail.fetch(eid, "(BODY.PEEK[])")
             if status != "OK" or not msg_data or not isinstance(msg_data[0], tuple) or len(msg_data[0]) < 2:
                 continue
 

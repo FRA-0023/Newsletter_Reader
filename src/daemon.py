@@ -3,6 +3,7 @@ import time
 import socket
 import signal
 import logging
+import threading
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from typing import Callable, Optional, Any
@@ -441,13 +442,31 @@ def run_daemon_loop() -> int:
     except Exception as e:
         logger.error(f"Unexpected error during startup catch-up: {e}", exc_info=True)
 
-    # 3. Start scheduler loop
+    # 3. Start periodic wakeup heartbeat to neutralize Windows Modern Standby / Sleep timer drift
+    stop_heartbeat = threading.Event()
+
+    def heartbeat_worker():
+        while not stop_heartbeat.is_set():
+            time.sleep(30)
+            if scheduler.running:
+                try:
+                    scheduler.wakeup()
+                except Exception:
+                    pass
+
+    heartbeat_thread = threading.Thread(
+        target=heartbeat_worker, daemon=True, name="StandbyWakeupHeartbeat"
+    )
+    heartbeat_thread.start()
+
+    # 4. Start scheduler loop
     logger.info("Scheduler started. Running in background...")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
+        stop_heartbeat.set()
         store.close()
         release_daemon_lock(lock_handle, lock_file)
 

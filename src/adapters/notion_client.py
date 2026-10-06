@@ -19,6 +19,48 @@ class NotionClientAdapter:
         if not token:
             raise ValueError("NOTION_TOKEN must be provided.")
         self.client = Client(auth=token)
+        self._schema_cache: Dict[str, tuple[str, Optional[str]]] = {}
+
+    def _resolve_db_schema(self, database_id: str) -> tuple[str, Optional[str]]:
+        """
+        Resolves the title property name and date property name for a Notion database.
+        Returns (title_prop_name, date_prop_name).
+        Caches results per database_id to avoid redundant network calls.
+        """
+        if database_id in self._schema_cache:
+            return self._schema_cache[database_id]
+
+        title_prop = "Name"
+        date_prop = "Received"
+
+        try:
+            db = self.client.databases.retrieve(database_id=database_id)
+            props = db.get("properties")
+            if not props:
+                ds = db.get("data_sources", [])
+                if ds:
+                    ds_data = self.client.request(path=f"data_sources/{ds[0]['id']}", method="GET")
+                    props = ds_data.get("properties", {})
+
+            if props:
+                found_title = next(
+                    (k for k, v in props.items() if isinstance(v, dict) and v.get("type") == "title"),
+                    None,
+                )
+                if found_title:
+                    title_prop = found_title
+                found_date = next(
+                    (k for k, v in props.items() if isinstance(v, dict) and v.get("type") == "date"),
+                    None,
+                )
+                date_prop = found_date
+        except Exception as e:
+            logger.warning(
+                f"Could not inspect schema for database {database_id}: {e}. Falling back to default properties."
+            )
+
+        self._schema_cache[database_id] = (title_prop, date_prop)
+        return title_prop, date_prop
 
     def save_page(
         self,
@@ -44,18 +86,22 @@ class NotionClientAdapter:
         else:
             raise ValueError(f"Unknown Notion layout_type: {layout_type}")
 
+        title_prop, date_prop = self._resolve_db_schema(database_id)
+        properties: Dict[str, Any] = {
+            title_prop: {
+                "title": [{"text": {"content": page_title[:100]}}]
+            }
+        }
+        if date_prop:
+            properties[date_prop] = {
+                "date": {"start": iso_date}
+            }
+
         logger.info(f"Creating Notion page in DB {database_id[:8]}... with {len(blocks)} blocks")
 
         response = self.client.pages.create(
             parent={"database_id": database_id},
-            properties={
-                "Name": {
-                    "title": [{"text": {"content": page_title[:100]}}]
-                },
-                "Received": {
-                    "date": {"start": iso_date}
-                },
-            },
+            properties=properties,
             children=blocks[:100],  # Notion accepts up to 100 children in create
         )
 
@@ -417,16 +463,20 @@ class NotionClientAdapter:
 
         logger.info(f"Creating Notion Daily Briefing page in DB {database_id[:8]}... with {len(blocks)} blocks")
 
+        title_prop, date_prop = self._resolve_db_schema(database_id)
+        properties: Dict[str, Any] = {
+            title_prop: {
+                "title": [{"text": {"content": data.executive_title[:100]}}]
+            }
+        }
+        if date_prop:
+            properties[date_prop] = {
+                "date": {"start": iso_date}
+            }
+
         response = self.client.pages.create(
             parent={"database_id": database_id},
-            properties={
-                "Name": {
-                    "title": [{"text": {"content": data.executive_title[:100]}}]
-                },
-                "Received": {
-                    "date": {"start": iso_date}
-                },
-            },
+            properties=properties,
             children=blocks[:100],
         )
 
