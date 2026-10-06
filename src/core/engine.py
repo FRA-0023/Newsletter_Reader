@@ -86,6 +86,15 @@ class NewsletterEngine:
                 mid = email_item.message_id
                 if self.store.is_processed(mid):
                     logger.info(f"Skipping already processed email [MID: {mid}] Subject: '{email_item.subject}'")
+                    # ARCHITETTURA / IDEMPOTENZA: Se il messaggio è già stato elaborato e salvato in SQLite
+                    # ma è rimasto \Unseen sul server IMAP (es. interruzione di rete o disconnessione socket
+                    # prima del flag), impostiamo il flag \Seen. Questo evita che ad ogni ciclo orario di cron
+                    # il client IMAP continui a riscaricare e processare l'header di una mail già archiviata.
+                    if not dry_run and not include_seen:
+                        try:
+                            imap.mark_as_read(email_item.eid)
+                        except Exception as e:
+                            logger.warning(f"Could not sync \\Seen flag for already-processed email {email_item.eid}: {e}")
                     continue
 
                 logger.info(f"Processing ({i + 1}/{len(emails)}): '{email_item.subject}'")

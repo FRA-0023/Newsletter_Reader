@@ -7,6 +7,7 @@ from pathlib import Path
 from config.settings import GlobalRuntimeConfig, EnvSettings, YamlConfig, resolve_language
 from src.adapters.sqlite_store import SQLiteStore
 from src.adapters.gemini_client import GeminiClient
+from src.adapters.notion_client import NotionClientAdapter
 from src.adapters.email_notifier import EmailNotifier
 from src.core.schemas import DailyBriefingOutput
 
@@ -72,6 +73,10 @@ class DailyBriefingService:
         self.store = store
         self.yaml_config = yaml_config
         self.gemini_client = GeminiClient(api_key=self.env.GEMINI_API_KEY) if self.env.GEMINI_API_KEY else None
+        # ARCHITETTURA: Istanziamo l'adapter Notion per consentire l'archiviazione del briefing cumulativo.
+        # Se NOTION_TOKEN non è configurato o il database non è presente, degrada a None permettendo
+        # il completamento della sintesi e l'invio via email (Disaccoppiamento dei canali di output).
+        self.notion_client = NotionClientAdapter(token=self.env.NOTION_TOKEN) if self.env.NOTION_TOKEN else None
         self.email_notifier = EmailNotifier(
             username=self.env.GMAIL_USER,
             password=self.env.GMAIL_APP_PASSWORD,

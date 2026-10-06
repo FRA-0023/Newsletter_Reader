@@ -292,7 +292,23 @@ def run_startup_catchup(
         today_briefing = store.get_daily_briefing(today_str)
         today_records = store.get_records_by_date(today_str)
 
-        if not today_briefing and today_records and is_schedule_missed(b_cron, b_tz, last_run_b, now=now):
+        # ARCHITETTURA / LOGICA DI CONTROLLO:
+        # Per determinare se il briefing di *oggi* è stato perso mentre il PC era spento,
+        # verifichiamo che l'orario programmato di oggi (es. 20:00) sia già trascorso (prev_fire_b.date() == current_date).
+        # Se sono le 12:00 o le 17:00, l'orario di oggi non è ancora passato: non dobbiamo anticipare
+        # il briefing, ma lasciare che scatti regolarmente al suo orario naturale delle 20:00.
+        try:
+            tz_obj = ZoneInfo(b_tz)
+        except Exception:
+            tz_obj = ZoneInfo("UTC")
+        now_dt = now if now is not None else datetime.now(tz_obj)
+        now_dt = now_dt.astimezone(tz_obj) if now_dt.tzinfo else now_dt.replace(tzinfo=tz_obj)
+
+        c_iter_b = croniter(b_cron, now_dt)
+        prev_fire_b = c_iter_b.get_prev(datetime)
+        today_time_passed = prev_fire_b.date() == current_date
+
+        if not today_briefing and today_records and today_time_passed and is_schedule_missed(b_cron, b_tz, last_run_b, now=now):
             logger.info(
                 f"[CATCH-UP TRIGGERED] Today's Daily Briefing ({today_str}) missed its schedule "
                 f"({len(today_records)} emails). Generating now..."

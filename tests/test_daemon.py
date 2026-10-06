@@ -163,6 +163,44 @@ def test_run_startup_catchup_triggers_missed_domain(temp_store):
     assert mock_engine.process_domain.call_args[0][0].id == "crypto_daily"
 
 
+def test_run_startup_catchup_skips_daily_briefing_if_time_not_yet_passed(temp_store):
+    mock_config = MagicMock()
+    mock_config.domains = []
+    mock_config.daily_briefing.enabled = True
+    mock_config.daily_briefing.schedule.cron = "0 20 * * *"
+    mock_config.daily_briefing.schedule.timezone = "Europe/Rome"
+
+    mock_engine = MagicMock()
+    mock_briefing_svc = MagicMock()
+    mock_scheduler = MagicMock()
+
+    # Now is 14:00 (20:00 hasn't happened yet today)
+    fixed_now = datetime(2026, 10, 4, 14, 0, tzinfo=ZoneInfo("Europe/Rome"))
+
+    # Record 1 email processed today
+    temp_store.record_processed(
+        message_id="mid-123",
+        domain_id="test_dom",
+        subject="Test Subj",
+        headline="Test Headline",
+        bullet_1="b1",
+        bullet_2="b2",
+        bullet_3="b3",
+    )
+
+    run_startup_catchup(
+        config=mock_config,
+        store=temp_store,
+        engine=mock_engine,
+        daily_briefing_svc=mock_briefing_svc,
+        scheduler=mock_scheduler,
+        now=fixed_now,
+    )
+
+    # Must NOT call daily_briefing_svc because 20:00 has not passed yet today!
+    assert not mock_briefing_svc.generate_and_send.called
+
+
 def test_daemon_lock(tmp_path):
     lock_file = tmp_path / "daemon.lock"
     handle1 = acquire_daemon_lock(lock_file)
