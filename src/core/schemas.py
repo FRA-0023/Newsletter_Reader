@@ -3,28 +3,33 @@ from pydantic import BaseModel, Field
 
 
 # ─── CANALE PUSH: EXECUTIVE EMAIL DIGEST (MASSIMO 3 BULLET POINT) ───
+# ARCHITETTURA: I campi di ExecutiveDigest sono convertiti in JSON Schema per Gemini Structured Outputs.
+# Le descrizioni guidano direttamente la fedeltà estrattiva: devono consentire sia il rigore statistico/demografico
+# (definizione, fonti, prevalenza) sia la logica di business (problema, principio, azione) senza distorsioni.
 class ExecutiveDigest(BaseModel):
     headline: str = Field(
-        description="Sintesi telegrafica e incisiva dell'argomento principale (max 10 parole)."
+        description="Sintesi telegrafica e incisiva dell'argomento principale (max 10-12 parole)."
     )
     bullet_1: str = Field(
-        description="Punto 1: Il dato quantitativo primario, statistica o metrica verificabile."
+        description="Punto 1: Cos'è il soggetto trattato, qual è la sua funzione primaria (biologica, sociale o di mercato), e dove si trova o come viene ottenuto/originato (o problema cardine per business)."
     )
     bullet_2: str = Field(
-        description="Punto 2: La dinamica di mercato, causa sistemica o fattore determinante."
+        description="Punto 2: Dati quantitativi chiave, percentuali, cause sottostanti o dinamiche sistemiche."
     )
     bullet_3: str = Field(
-        description="Punto 3: L'azione operativa, setup tattico o takeaway strategico."
+        description="Punto 3: Conseguenze, impatto clinico/economico/sociale o azione/decisione operativa."
     )
 
 
 # ─── CANALE STORAGE: STRUTTURA WORLD POPULATION ─────────────────────
+# TRADE-OFF: Manteniamo data_points come lista di stringhe per flessibilità di rendering in Notion,
+# ma imponiamo tramite schema la copertura esaustiva: definizione, funzione/fonti, metriche, cause ed effetti.
 class QuantitativeMetricsPayload(BaseModel):
     macro_topic: str = Field(
-        description="Classificazione sintetica in 1-3 parole (es. EU Demographics, US Inflation)."
+        description="Classificazione sintetica in 1-3 parole (es. Salute & Epidemiologia, Demografia Globale)."
     )
     data_points: List[str] = Field(
-        description="Elenco di 3-8 metriche o evidenze quantitative numeriche con contesto."
+        description="Elenco ordinato di 4-8 evidenze analitiche con contesto completo: definizione, ruolo/fonti del soggetto, metriche quantitative esatte, fattori causali e impatto/raccomandazioni."
     )
 
 
@@ -92,18 +97,21 @@ class FrameworkExtractionOutput(BaseModel):
 
 
 # ─── CANALE CUMULATIVO: DAILY INTELLIGENCE BRIEFING ─────────────────
+# ARCHITETTURA: Schema del briefing cumulativo serale inviato via email e archiviato su Notion.
+# I vincoli stringenti nelle descrizioni dei campi istruiscono il modello a livello di JSON schema,
+# prevenendo allucinazioni di meta-narrative olistiche o chimere di domini eterogenei.
 class DomainBriefingEntry(BaseModel):
     domain_name: str = Field(description="Nome della newsletter e del tema specifico (es. 'Tristan Burns — Jobs to Be Done in Data Teams').")
     core_thesis: Optional[str] = Field(default=None, description="Opzionale sintesi diagnostica (omessa o null per evitare duplicazioni con i takeaways).")
-    key_takeaways: List[str] = Field(description="Esattamente 3 bullet point distinti e non sovrapposti (Problema/Contesto, Leva/Meccanismo, Azione/Decisione).")
+    key_takeaways: List[str] = Field(description="Esattamente 3 bullet point distinti e non sovrapposti con tag in grassetto (es. Problema/Contesto, Meccanismo/Funzione, Implicazione/Azione).")
     notion_url: Optional[str] = Field(default=None, description="URL diretto alla pagina Notion della specifica email.")
 
 
 class DailyBriefingOutput(BaseModel):
-    executive_title: str = Field(description="Titolo esecutivo del briefing giornaliero in italiano (max 10 parole).")
-    macro_narrative: str = Field(description="Sintesi integrata ad altissima densità che collega i diversi temi della giornata in una visione sistemica (2-3 paragrafi compatti).")
-    domain_breakdowns: List[DomainBriefingEntry] = Field(description="Riepilogo strutturato per ciascun dominio processato oggi.")
-    actionable_priority: str = Field(description="La singola mossa o priorità strategico-operativa da tenere a mente per domani.")
+    executive_title: str = Field(description="Titolo esecutivo in italiano (max 8-10 parole) che riflette i macro-temi del giorno senza forzature unificanti (es. 'Radar Odierno: Focus Demografia, Strategia d'Impresa & Mercati').")
+    macro_narrative: str = Field(description="Panoramica esecutiva asettica (2-3 frasi chiare) che sintetizza i fronti principali della giornata per macro-aree, SENZA forzare collegamenti artificiali, finti contrasti o narrazioni olistiche tra temi non correlati.")
+    domain_breakdowns: List[DomainBriefingEntry] = Field(description="Riepilogo strutturato per ciascun dominio processato oggi (mappatura rigorosa 1:1).")
+    actionable_priority: str = Field(description="Un singolo spunto operativo o test diagnostico focalizzato, estratto da uno specifico dominio applicabile (es. strategia/business). SEVERAMENTE VIETATO mescolare o fondere più domini diversi in una singola frase.")
 
 
 # ─── SCHEMA REGISTRY PER DISPATCHING DINAMICO ────────────────────────

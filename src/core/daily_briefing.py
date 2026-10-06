@@ -117,12 +117,16 @@ class DailyBriefingService:
             notion_id = rec.get("notion_page_id")
             notion_url = f"https://notion.so/{notion_id.replace('-', '')}" if notion_id else "N/A"
 
+            # ARCHITETTURA: Presentiamo i punti estratti in modo neutrale per disaccoppiare
+            # l'aggregazione dalla semantica del singolo dominio. Etichette rigide come 'Fact/Data'
+            # o 'Action/Takeaway' distorcono domini scientifici/demografici inducendo l'LLM a
+            # scartare definizioni o inventare azioni fittizie.
             block = f"""--- RECORD {idx}: [{d_name}] ---
 Subject: {subject}
 Headline: {headline}
-• Fact/Data: {b1}
-• Dynamic: {b2}
-• Action/Takeaway: {b3}
+• {b1}
+• {b2}
+• {b3}
 Notion Page: {notion_url}
 """
             intake_blocks.append(block)
@@ -214,7 +218,7 @@ Notion Page: {notion_url}
         lbl_header = "☕ Daily Intelligence Briefing"
         lbl_read_time = "Lettura rapida: 60 sec" if is_it else "Quick read: 60 sec"
         lbl_date = "Data:" if is_it else "Date:"
-        lbl_overview = "Panoramica in Breve" if is_it else "Executive Overview"
+        lbl_overview = "Radar Esecutivo" if is_it else "Executive Radar"
         lbl_highlights = "I Punti Salienti di Oggi" if is_it else "Today's Core Highlights"
         lbl_priority = "🎯 Spunto per Domani" if is_it else "🎯 Actionable Priority for Tomorrow"
         lbl_notion_btn = "Approfondisci su Notion &rarr;" if is_it else "Explore on Notion &rarr;"
@@ -240,7 +244,7 @@ Notion Page: {notion_url}
             f"{'=' * 50}",
             f"OVERVIEW: {data.executive_title}",
             "",
-            "MACRO NARRATIVE & CAUSAL CONNECTIONS:",
+            "RADAR ESECUTIVO:" if is_it else "EXECUTIVE RADAR:",
             data.macro_narrative,
             "",
             f"{'-' * 50}",

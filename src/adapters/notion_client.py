@@ -367,7 +367,9 @@ class NotionClientAdapter:
         blocks: List[Dict[str, Any]] = []
 
         # 1. Macro Overview Callout Block
-        overview_title = "Panoramica in Breve: " if is_it else "Executive Overview: "
+        # ARCHITETTURA: Allineiamo la nomenclatura del blocco callout di Notion a 'Radar Esecutivo',
+        # rispecchiando l'eliminazione delle narrazioni olistiche artificiali.
+        overview_title = "Radar Esecutivo: " if is_it else "Executive Radar: "
         blocks.append(
             {
                 "object": "block",
